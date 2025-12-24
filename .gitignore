@@ -1,0 +1,136 @@
+# =========================
+# Unity .gitignore Template
+# =========================
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# User-specific files
+*.swp
+*.swo
+*.tmp
+*.log
+
+# Unity specific
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+UserSettings/
+
+# Asset meta data should only be ignored when the corresponding asset is also ignored
+# But generally, keep .meta files!
+!*.meta
+
+# Unity Cache and Generated files
+sysinfo.txt
+*.pidb
+*.suo
+*.user
+*.userprefs
+*.csproj
+*.unityproj
+*.sln
+*.booproj
+
+# Rider / Visual Studio / JetBrains
+.idea/
+.vscode/
+*.dotSettings
+*.vs/
+*.VisualStudio/
+*.ncrunchsolution
+*.ncrunchproject
+
+# Unity build output
+*.apk
+*.aab
+*.unitypackage
+*.app
+*.exe
+*.xcodeproj
+*.xcworkspace
+*.ipa
+*.dll
+*.so
+*.pdb
+*.mdb
+
+# Crash Reports
+*.stacktrace
+
+# Auto-generated lighting data
+[Ll]ightingData.asset
+[Ll]ightmapSnapshot
+[Ll]ightmaps/
+[Ll]ightProbes/
+OcclusionCullingData.asset
+
+# Addressables
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/assetpack*/**
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/catalog.json
+
+# Build cache
+[Bb]uildCache/
+
+# Plastic SCM
+PlasticSCM/
+*.plastic*
+
+# Gradle cache (Android)
+.gradle/
+*.gradle
+
+# Android / iOS generated files
+*.keystore
+*.key
+*.jks
+*.cer
+*.p12
+*.mobileprovision
+
+# Crashlytics / Analytics
+crashlytics-build.properties
+
+# Package manager cache
+Packages/com.unity.package-manager/
+
+# Local Test Results
+TestResults/
+*.testreport.xml
+
+# Rider solution data
+.idea/
+
+# VS Code workspace
+.vscode/
+
+# Shader cache
+[Aa]ssets/ShaderCache/
+
+# Collaborate Cache
+[Aa]ssets/CollabCache/
+
+# Auto-generated project files by Unity
+ExportedObj/
+*.unitypackage
+
+# Ignore all binaries in StreamingAssets
+[Aa]ssets/[Ss]treamingAssets/**/*.bin
+[Aa]ssets/[Ss]treamingAssets/**/*.mp4
+[Aa]ssets/[Ss]treamingAssets/**/*.wav
+[Aa]ssets/[Ss]treamingAssets/**/*.ogg
+
+# TextMesh Pro auto-generated files
+[Aa]ssets/TextMesh Pro/Resources/Font Settings/
+[Aa]ssets/TextMesh Pro/Resources/*.asset
+
+# Cache files
+[Aa]ssets/AssetStoreTools*
+
+# Package cache (optional but recommended)
+[Aa]ssets/PackagesCache/
