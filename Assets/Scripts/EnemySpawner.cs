@@ -5,31 +5,74 @@ public class EnemySpawner : MonoBehaviour
 {
     [SerializeField] GameObject enemyPrefab;
     [SerializeField] GameObject enemyTankPrefab;
+
+    [Header("Spawn")]
     [SerializeField] float spawnInterval = 1f;
     [SerializeField] int maxAliveEnemies = 50;
     [SerializeField] float outsideOffset = 0.05f;
 
-    private float elapsedTime;
-    private float timer;
+    [Header("Level")]
+    public int currentLevel = 1;
+    [SerializeField] float levelDuration = 30f;
 
-    private void Update()
+    float spawnTimer;
+    float levelTimer;
+
+    void Update()
     {
-        Debug.Log(elapsedTime);
         if (enemyPrefab == null) return;
 
-        if (GameObject.FindGameObjectsWithTag("Enemy").Length >= maxAliveEnemies) { return; }
+        // Zamanları ilerlet
+        float dt = Time.deltaTime;
+        levelTimer += dt;
+        spawnTimer += dt;
 
-        elapsedTime = Time.timeSinceLevelLoad;
-        timer += Time.deltaTime;
+        // Önce level güncelle (interval/cap değişsin), sonra spawn kontrol et
+        UpdateLevel();
 
-        if (timer >= spawnInterval)
+        // Max enemy kontrolü
+        if (GameObject.FindGameObjectsWithTag("Enemy").Length >= maxAliveEnemies)
+            return;
+
+        if (spawnTimer >= spawnInterval)
         {
-            timer = 0f;
+            spawnTimer = 0f;
             SpawnAtScreenEdge();
         }
     }
 
-    private void SpawnAtScreenEdge()
+    void UpdateLevel()
+    {
+        if (levelTimer < levelDuration) return;
+
+        currentLevel++;
+        levelTimer = 0f;
+
+        ApplyLevelSettings(currentLevel);
+
+        // İstersen test için:
+        Debug.Log($"LEVEL UP -> {currentLevel} | interval:{spawnInterval} | cap:{maxAliveEnemies}");
+    }
+
+    void ApplyLevelSettings(int level)
+    {
+        // Spawn daha sık (0.2 altına düşmesin)
+        spawnInterval = Mathf.Max(0.2f, 1f - (level - 1) * 0.1f);
+
+        // Ekrandaki düşman limiti artsın
+        maxAliveEnemies = 50 + (level - 1) * 10;
+    }
+
+    public void ResetSpawnerSettings()
+    {
+        currentLevel = 1;
+        levelTimer = 0f;
+        spawnTimer = 0f;
+
+        ApplyLevelSettings(currentLevel);
+    }
+
+    void SpawnAtScreenEdge()
     {
         Camera cam = Camera.main;
         if (cam == null) return;
@@ -51,37 +94,32 @@ public class EnemySpawner : MonoBehaviour
         SpawnEnemy(world);
     }
 
-    private float GetTankSpawnChance()
+    // Tank "fazı": level içindeki zamana göre (levelTimer)
+    float GetTankSpawnChance(float levelElapsedTime, float levelMultiplier)
     {
-        if (elapsedTime < 20)
-        {
-            return 0;
-        }
-        else if (elapsedTime >= 20 && elapsedTime < 40)
-        {
-            return 0.05f;
-        }
-        else if (elapsedTime >= 40 && elapsedTime < 60)
-        {
-            return 0.10f;
-        }
-        else
-        {
-            return 0.15f;
-        }
+        float baseChance;
+
+        if (levelElapsedTime < 10f) baseChance = 0.01f; // levelin başı: çok az
+        else if (levelElapsedTime < 20f) baseChance = 0.05f; // orta: biraz
+        else baseChance = 0.10f; // son: daha çok
+
+        // Yumuşak çarpanla güçlendir
+        float chance = baseChance * levelMultiplier;
+
+        // Güvenlik: 0..0.90 arası tut (1 olmasın, yoksa hep tank olur)
+        return Mathf.Clamp(chance, 0f, 0.90f);
     }
 
-    private void SpawnEnemy(Vector3 position)
+    void SpawnEnemy(Vector3 position)
     {
-        float chance = GetTankSpawnChance();
-        if (Random.value < chance)
-        {
-            if (enemyTankPrefab == null) { return; }
-            Instantiate(enemyTankPrefab, position, Quaternion.identity);
-        }
-        else
-        {
-            Instantiate(enemyPrefab, position, Quaternion.identity);
-        }
+        // Level çarpanı: currentLevel'ı direkt kullanma, yumuşat
+        // L1=1.0, L2=1.1, L3=1.2, ...
+        float levelMultiplier = 1f + (currentLevel - 1) * 0.10f;
+
+        float chance = GetTankSpawnChance(levelTimer, levelMultiplier);
+
+        bool spawnTank = (enemyTankPrefab != null) && (Random.value < chance);
+
+        Instantiate(spawnTank ? enemyTankPrefab : enemyPrefab, position, Quaternion.identity);
     }
 }

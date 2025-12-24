@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class Player : MonoBehaviour
 {
@@ -7,6 +8,7 @@ public class Player : MonoBehaviour
     [Header("Health")]
     public int maxHp = 10;
     public int currentHp;
+    EnemySpawner enemySpawner;
 
     [Header("Bullet")]
     public GameObject bulletPrefab;
@@ -31,6 +33,7 @@ public class Player : MonoBehaviour
 
     void Awake()
     {
+        enemySpawner = FindFirstObjectByType<EnemySpawner>();
         rb = GetComponent<Rigidbody2D>();
         currentHp = maxHp;
     }
@@ -127,9 +130,7 @@ public class Player : MonoBehaviour
 
     void Die()
     {
-        // Şimdilik basit: sahneyi yeniden başlat
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex
-        );
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
+
 }
