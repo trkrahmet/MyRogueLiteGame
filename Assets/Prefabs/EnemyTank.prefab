@@ -102,8 +102,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a04232e77d7b74439e24bbd795d801b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  xpOrbPrefab: {fileID: 3437380876215726848, guid: 8bc1c6d4573b5a24eb6c48bf3624d68e, type: 3}
   moveSpeed: 1
-  maxHp: 6
+  maxHp: 86
   contactDamage: 3
 --- !u!50 &4043633248020088455
 Rigidbody2D:

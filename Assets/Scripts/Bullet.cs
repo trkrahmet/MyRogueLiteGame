@@ -4,7 +4,7 @@ public class Bullet : MonoBehaviour
 {
     [SerializeField] float speed = 12f;
     [SerializeField] float lifeTime = 2f;
-    [SerializeField] int damage = 1;
+    public int damage = 1;
 
     Vector2 dir;
 

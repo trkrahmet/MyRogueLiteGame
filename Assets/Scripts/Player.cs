@@ -1,18 +1,23 @@
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class Player : MonoBehaviour
 {
+    [Header("Movement")]
+    Rigidbody2D rb;
+    Vector2 inputMove;
     public float moveSpeed = 6f;
 
     [Header("Health")]
     public int maxHp = 10;
     public int currentHp;
-    EnemySpawner enemySpawner;
 
-    [Header("Bullet")]
+    [Header("Combat")]
+    Bullet bullet;
     public GameObject bulletPrefab;
     public Transform firePoint; // boş child objesi (player'ın üstünde)
+    public int damage = 1;
     public float fireRate = 0.3f;
     float shootTimer;
 
@@ -22,18 +27,18 @@ public class Player : MonoBehaviour
 
     [Header("Invulnerability (i-frames)")]
     public float invulnDuration = 0.35f;
-
-    Rigidbody2D rb;
-    Vector2 inputMove;
-
     Vector2 knockbackVel;
     float knockbackTimer;
-
     float invulnTimer;
+
+    [Header("XP & Leveling")]
+    public int playerLevel = 1;
+    public int currentXp = 0;
+    public int xpToNextLevel = 5;
 
     void Awake()
     {
-        enemySpawner = FindFirstObjectByType<EnemySpawner>();
+        bullet = FindFirstObjectByType<Bullet>();
         rb = GetComponent<Rigidbody2D>();
         currentHp = maxHp;
     }
@@ -96,18 +101,34 @@ public class Player : MonoBehaviour
         Vector2 dir = ((Vector2)nearest.position - (Vector2)firePoint.position).normalized;
 
         GameObject b = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
-        b.GetComponent<Bullet>().SetDirection(dir);
+
+        Bullet bullet = b.GetComponent<Bullet>();
+        if (bullet == null) return; // prefab'da Bullet script'i yoksa sessizce çık
+
+        bullet.damage = damage;
+        bullet.SetDirection(dir);
     }
 
     void OnTriggerEnter2D(Collider2D other)
     {
+        if (other.CompareTag("XP"))
+        {
+            currentXp += 1;
+            Destroy(other.gameObject);
+            TryLevelUp();
+            return;
+        }
+
         if (!other.CompareTag("Enemy")) return;
 
         // i-frame aktifse görmezden gel
         if (invulnTimer > 0f) return;
 
+        Enemy enemy = other.GetComponentInParent<Enemy>();
+        if (enemy == null) return;
+
         // Hasar
-        TakeDamage(1);
+        TakeDamage(enemy.contactDamage);
 
         // Knockback (enemy'den uzak yöne)
         Vector2 dir = ((Vector2)transform.position - (Vector2)other.transform.position).normalized;
@@ -116,6 +137,42 @@ public class Player : MonoBehaviour
 
         // i-frame başlat
         invulnTimer = invulnDuration;
+    }
+
+    private void TryLevelUp()
+    {
+        while (currentXp >= xpToNextLevel)
+        {
+            playerLevel += 1;
+            currentXp -= xpToNextLevel;
+            xpToNextLevel += 5; // sonraki seviye için gereken XP artışı
+            ApplyRandomUpgrade();
+        }
+    }
+
+    private void ApplyRandomUpgrade()
+    {
+        int choice = Random.Range(0, 4);
+        switch (choice)
+        {
+            case 0:
+                maxHp += 2;
+                currentHp += 2;
+                Debug.Log("Max HP increased!");
+                break;
+            case 1:
+                moveSpeed += 1f;
+                Debug.Log("Move Speed increased!");
+                break;
+            case 2:
+                fireRate = Mathf.Max(0.1f, fireRate - 0.05f);
+                Debug.Log("Fire Rate increased!");
+                break;
+            case 3:
+                damage += 1;
+                Debug.Log("Damage increased!");
+                break;
+        }
     }
 
     void TakeDamage(int amount)
@@ -132,5 +189,4 @@ public class Player : MonoBehaviour
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
-
 }

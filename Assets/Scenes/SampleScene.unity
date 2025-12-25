@@ -605,6 +605,8 @@ MonoBehaviour:
   spawnInterval: 1
   maxAliveEnemies: 50
   outsideOffset: 0.05
+  currentLevel: 1
+  levelDuration: 30
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
