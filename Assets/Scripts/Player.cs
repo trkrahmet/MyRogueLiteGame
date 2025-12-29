@@ -1,9 +1,11 @@
-using Unity.VisualScripting;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class Player : MonoBehaviour
 {
+    // public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
+
     [Header("Movement")]
     Rigidbody2D rb;
     Vector2 inputMove;
