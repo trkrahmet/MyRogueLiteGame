@@ -1,10 +1,29 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Random = UnityEngine.Random;
 
 public class Player : MonoBehaviour
 {
-    // public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
+    [Serializable]
+    public class WeaponSlot
+    {
+        public WeaponType type;
+        public float interval;
+        public float timer;
+        public int damage;
+        public int pelletCount;
+        public float spreadAngle;
+    }
+
+    public enum WeaponType
+    {
+        Rifle,
+        Shotgun
+    }
+
+    public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
 
     [Header("Movement")]
     Rigidbody2D rb;
@@ -19,9 +38,7 @@ public class Player : MonoBehaviour
     Bullet bullet;
     public GameObject bulletPrefab;
     public Transform firePoint; // boş child objesi (player'ın üstünde)
-    public int damage = 1;
-    public float fireRate = 0.3f;
-    float shootTimer;
+    // float shootTimer;
 
     [Header("Knockback")]
     public float knockbackStrength = 6f;
@@ -51,12 +68,25 @@ public class Player : MonoBehaviour
         float v = Input.GetAxisRaw("Vertical");
         inputMove = new Vector2(h, v).normalized;
 
-        shootTimer -= Time.deltaTime;
-        if (shootTimer <= 0f)
+        for (int i = 0; i < weaponSlots.Count; i++)
         {
-            ShootNearestEnemy();
-            shootTimer = fireRate;
+            WeaponSlot slot = weaponSlots[i];
+
+            slot.timer -= Time.deltaTime;
+            if (slot.timer <= 0f)
+            {
+                Fire(slot);
+                Debug.Log(slot.type + "fired!");
+                slot.timer = slot.interval;
+            }
         }
+
+        // shootTimer -= Time.deltaTime;
+        // if (shootTimer <= 0f)
+        // {
+        //     ShootNearestEnemy();
+        //     shootTimer = fireRate;
+        // }
     }
 
     void FixedUpdate()
@@ -77,12 +107,10 @@ public class Player : MonoBehaviour
         rb.MovePosition(rb.position + finalVel * Time.fixedDeltaTime);
     }
 
-    void ShootNearestEnemy()
+    Transform FindNearestEnemy()
     {
-        if (bulletPrefab == null || firePoint == null) return;
-
         GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-        if (enemies.Length == 0) return;
+        if (enemies.Length == 0) return null;
 
         Transform nearest = null;
         float bestDist = float.MaxValue;
@@ -98,14 +126,30 @@ public class Player : MonoBehaviour
             }
         }
 
-        if (nearest == null) return;
+        return nearest;
+    }
 
-        Vector2 dir = ((Vector2)nearest.position - (Vector2)firePoint.position).normalized;
+    bool TryGetDirectionToNearest(out Vector2 dir)
+    {
+        dir = Vector2.zero;
+
+        if (firePoint == null) return false;
+
+        Transform target = FindNearestEnemy();
+        if (target == null) return false;
+
+        dir = ((Vector2)target.position - (Vector2)firePoint.position).normalized;
+        return true;
+    }
+
+    void SpawnBullet(Vector2 dir, int damage)
+    {
+        if (bulletPrefab == null || firePoint == null) return;
 
         GameObject b = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
 
         Bullet bullet = b.GetComponent<Bullet>();
-        if (bullet == null) return; // prefab'da Bullet script'i yoksa sessizce çık
+        if (bullet == null) return;
 
         bullet.damage = damage;
         bullet.SetDirection(dir);
@@ -167,12 +211,22 @@ public class Player : MonoBehaviour
                 Debug.Log("Move Speed increased!");
                 break;
             case 2:
-                fireRate = Mathf.Max(0.1f, fireRate - 0.05f);
-                Debug.Log("Fire Rate increased!");
+                for (int i = 0; i < weaponSlots.Count; i++)
+                {
+                    if (weaponSlots == null || weaponSlots.Count == 0) return;
+
+                    weaponSlots[i].interval = Mathf.Max(0.1f, weaponSlots[i].interval - 0.05f);
+                    Debug.Log("Fire Rate increased! (interval decreased)");
+                }
                 break;
             case 3:
-                damage += 1;
-                Debug.Log("Damage increased!");
+                for (int i = 0; i < weaponSlots.Count; i++)
+                {
+                    if (weaponSlots == null || weaponSlots.Count == 0) return;
+
+                    weaponSlots[i].damage += 1;
+                    Debug.Log("Damage increased!");
+                }
                 break;
         }
     }
@@ -190,5 +244,50 @@ public class Player : MonoBehaviour
     void Die()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    void Fire(WeaponSlot slot)
+    {
+        switch (slot.type)
+        {
+            case WeaponType.Rifle:
+                FireRifle(slot);
+                break;
+
+            case WeaponType.Shotgun:
+                FireShotgun(slot);
+                break;
+        }
+    }
+
+    void FireRifle(WeaponSlot slot)
+    {
+        if (!TryGetDirectionToNearest(out Vector2 dir)) return;
+        SpawnBullet(dir, slot.damage);
+    }
+
+    void FireShotgun(WeaponSlot slot)
+    {
+        if (!TryGetDirectionToNearest(out Vector2 dir)) return;
+
+        int pellets = Mathf.Max(1, slot.pelletCount);
+
+        // pelletCount 1 ise tek mermi gibi çalışsın
+        if (pellets == 1)
+        {
+            SpawnBullet(dir, slot.damage);
+            return;
+        }
+
+        float startAngle = -slot.spreadAngle / 2f;
+        float step = slot.spreadAngle / (pellets - 1);
+
+        for (int i = 0; i < pellets; i++)
+        {
+            float angle = startAngle + step * i;
+            Vector2 rotatedDir = (Vector2)(Quaternion.Euler(0f, 0f, angle) * (Vector3)dir);
+
+            SpawnBullet(rotatedDir, slot.damage);
+        }
     }
 }

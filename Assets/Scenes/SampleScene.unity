@@ -474,15 +474,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9a497e5ee5639834abfe76a168711ecc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  weaponSlots:
+  - type: 0
+    interval: 0.3
+    timer: 0
+    damage: 1
+    pelletCount: 0
+    spreadAngle: 0
+  - type: 1
+    interval: 0.8
+    timer: 0
+    damage: 1
+    pelletCount: 5
+    spreadAngle: 30
   moveSpeed: 5
   maxHp: 10
   currentHp: 0
   bulletPrefab: {fileID: 3734019574872694842, guid: 3b4eabeaaf6de354f97cd41c7aceab89, type: 3}
   firePoint: {fileID: 465957691}
+  damage: 1
   fireRate: 0.3
   knockbackStrength: 6
   knockbackDuration: 0.12
   invulnDuration: 0.35
+  playerLevel: 1
+  currentXp: 0
+  xpToNextLevel: 5
 --- !u!61 &1194565599
 BoxCollider2D:
   m_ObjectHideFlags: 0
