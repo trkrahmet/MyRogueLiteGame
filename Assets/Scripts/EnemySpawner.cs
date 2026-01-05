@@ -17,9 +17,12 @@ public class EnemySpawner : MonoBehaviour
 
     float spawnTimer;
     float levelTimer;
+    public bool spawningEnabled = true;
 
     void Update()
     {
+        if (!spawningEnabled) return;
+
         if (enemyPrefab == null) return;
 
         // Zamanları ilerlet
@@ -54,7 +57,12 @@ public class EnemySpawner : MonoBehaviour
         Debug.Log($"LEVEL UP -> {currentLevel} | interval:{spawnInterval} | cap:{maxAliveEnemies}");
     }
 
-    void ApplyLevelSettings(int level)
+    public void ApplyWaveSettings(int wave)
+    {
+        Debug.Log($"Wave {wave} settings applied");
+    }
+
+    private void ApplyLevelSettings(int level)
     {
         // Spawn daha sık (0.2 altına düşmesin)
         spawnInterval = Mathf.Max(0.2f, 1f - (level - 1) * 0.1f);
