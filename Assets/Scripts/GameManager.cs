@@ -5,8 +5,8 @@ public class GameManager : MonoBehaviour
 {
     [Header("Wave Settings")]
     public float waveDuration = 60f;
-    public int currentWave = 1;
-    float waveTimer;
+    public int currentWaveLevel = 1;
+    public float waveTimer;
     bool inCombat = true;
 
     [Header("References")]
@@ -44,6 +44,7 @@ public class GameManager : MonoBehaviour
         if (waveTimer <= 0f)
         {
             EndCombat();
+            spawner.ClearAllEnemies();
             return;
         }
         UpdateUI();
@@ -71,20 +72,20 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0f;
 
         UpdateUI();
-        Debug.Log($"Wave {currentWave} ended. Prepare for upgrades!");
+        Debug.Log($"Wave {currentWaveLevel} ended. Prepare for upgrades!");
     }
 
     private void UpdateUI()
     {
-        if (waveText != null) { waveText.text = $"Wave: {currentWave}"; }
+        if (waveText != null) { waveText.text = $"Wave: {currentWaveLevel}"; }
         if (timerText != null) timerText.text = $"Time: {Mathf.CeilToInt(waveTimer)}";
-        if (levelText != null && spawner != null) { levelText.text = $"Level: {spawner.currentLevel}"; }
+        if (levelText != null && spawner != null) { levelText.text = $"Level: {currentWaveLevel}"; }
     }
 
     public void ContinueAfterUpgrade()
     {
-        currentWave++;
-        spawner.ApplyWaveSettings(currentWave);
+        currentWaveLevel++;
+        spawner.ApplyWaveSettings(currentWaveLevel);
         StartCombat();
     }
 }

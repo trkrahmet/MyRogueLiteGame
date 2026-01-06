@@ -1,8 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
 public class EnemySpawner : MonoBehaviour
 {
+    GameManager gameManager;
+    private List<GameObject> aliveEnemies = new List<GameObject>();
+
     [SerializeField] GameObject enemyPrefab;
     [SerializeField] GameObject enemyTankPrefab;
 
@@ -11,13 +15,13 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] int maxAliveEnemies = 50;
     [SerializeField] float outsideOffset = 0.05f;
 
-    [Header("Level")]
-    public int currentLevel = 1;
-    [SerializeField] float levelDuration = 30f;
-
     float spawnTimer;
-    float levelTimer;
     public bool spawningEnabled = true;
+
+    void Awake()
+    {
+        gameManager = FindFirstObjectByType<GameManager>();
+    }
 
     void Update()
     {
@@ -27,11 +31,7 @@ public class EnemySpawner : MonoBehaviour
 
         // Zamanları ilerlet
         float dt = Time.deltaTime;
-        levelTimer += dt;
         spawnTimer += dt;
-
-        // Önce level güncelle (interval/cap değişsin), sonra spawn kontrol et
-        UpdateLevel();
 
         // Max enemy kontrolü
         if (GameObject.FindGameObjectsWithTag("Enemy").Length >= maxAliveEnemies)
@@ -44,40 +44,21 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
-    void UpdateLevel()
-    {
-        if (levelTimer < levelDuration) return;
-
-        currentLevel++;
-        levelTimer = 0f;
-
-        ApplyLevelSettings(currentLevel);
-
-        // İstersen test için:
-        Debug.Log($"LEVEL UP -> {currentLevel} | interval:{spawnInterval} | cap:{maxAliveEnemies}");
-    }
-
-    public void ApplyWaveSettings(int wave)
-    {
-        Debug.Log($"Wave {wave} settings applied");
-    }
-
-    private void ApplyLevelSettings(int level)
+    public void ApplyWaveSettings(int waveLevel)
     {
         // Spawn daha sık (0.2 altına düşmesin)
-        spawnInterval = Mathf.Max(0.2f, 1f - (level - 1) * 0.1f);
+        spawnInterval = Mathf.Max(0.2f, 1f - (waveLevel - 1) * 0.1f);
 
         // Ekrandaki düşman limiti artsın
-        maxAliveEnemies = 50 + (level - 1) * 10;
+        maxAliveEnemies = 50 + (waveLevel - 1) * 10;
+        Debug.Log($"Wave {waveLevel} settings applied");
     }
 
     public void ResetSpawnerSettings()
     {
-        currentLevel = 1;
-        levelTimer = 0f;
         spawnTimer = 0f;
 
-        ApplyLevelSettings(currentLevel);
+        ApplyWaveSettings(gameManager.currentWaveLevel);
     }
 
     void SpawnAtScreenEdge()
@@ -101,33 +82,33 @@ public class EnemySpawner : MonoBehaviour
 
         SpawnEnemy(world);
     }
-
-    // Tank "fazı": level içindeki zamana göre (levelTimer)
-    float GetTankSpawnChance(float levelElapsedTime, float levelMultiplier)
+    
+    float GetTankSpawnChance(float levelMultiplier)
     {
-        float baseChance;
-
-        if (levelElapsedTime < 10f) baseChance = 0.01f; // levelin başı: çok az
-        else if (levelElapsedTime < 20f) baseChance = 0.05f; // orta: biraz
-        else baseChance = 0.10f; // son: daha çok
-
-        // Yumuşak çarpanla güçlendir
-        float chance = baseChance * levelMultiplier;
-
-        // Güvenlik: 0..0.90 arası tut (1 olmasın, yoksa hep tank olur)
-        return Mathf.Clamp(chance, 0f, 0.90f);
+        float baseChance = 0.1f + (levelMultiplier - 1f) * 0.05f; // Level arttıkça temel şans artar
+        return Mathf.Clamp01(baseChance);
     }
 
     void SpawnEnemy(Vector3 position)
     {
         // Level çarpanı: currentLevel'ı direkt kullanma, yumuşat
         // L1=1.0, L2=1.1, L3=1.2, ...
-        float levelMultiplier = 1f + (currentLevel - 1) * 0.10f;
+        float levelMultiplier = 1f + (gameManager.currentWaveLevel - 1) * 0.10f;
 
-        float chance = GetTankSpawnChance(levelTimer, levelMultiplier);
+        float chance = GetTankSpawnChance(levelMultiplier);
 
         bool spawnTank = (enemyTankPrefab != null) && (Random.value < chance);
 
-        Instantiate(spawnTank ? enemyTankPrefab : enemyPrefab, position, Quaternion.identity);
+        var enemy = Instantiate(spawnTank ? enemyTankPrefab : enemyPrefab, position, Quaternion.identity);
+        aliveEnemies.Add(enemy);
+    }
+
+    public void ClearAllEnemies()
+    {
+        foreach (var enemy in GameObject.FindGameObjectsWithTag("Enemy"))
+        {
+            Destroy(enemy);
+        }
+        aliveEnemies.Clear();
     }
 }
