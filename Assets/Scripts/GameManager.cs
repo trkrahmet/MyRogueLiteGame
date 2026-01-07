@@ -17,7 +17,7 @@ public class GameManager : MonoBehaviour
     public TMP_Text waveText;
     public TMP_Text timerText;
     public TMP_Text levelText;
-    public GameObject upgradePanel;
+    [SerializeField] UpgradePanel upgradePanel;
 
     private void Start()
     {
@@ -25,7 +25,6 @@ public class GameManager : MonoBehaviour
         if (player == null) player = FindFirstObjectByType<Player>();
 
         waveTimer = waveDuration;
-        if (upgradePanel != null) { upgradePanel.SetActive(false); }
 
         StartCombat();
         UpdateUI();
@@ -57,8 +56,6 @@ public class GameManager : MonoBehaviour
 
         if (spawner != null) { spawner.spawningEnabled = true; }
 
-        if (upgradePanel != null) { upgradePanel.SetActive(false); }
-
         Time.timeScale = 1f;
     }
 
@@ -67,19 +64,19 @@ public class GameManager : MonoBehaviour
         inCombat = false;
 
         if (spawner != null) { spawner.spawningEnabled = false; }
-        if (upgradePanel != null) { upgradePanel.SetActive(true); }
 
         Time.timeScale = 0f;
 
         UpdateUI();
         Debug.Log($"Wave {currentWaveLevel} ended. Prepare for upgrades!");
+        upgradePanel.Open();
     }
 
     private void UpdateUI()
     {
         if (waveText != null) { waveText.text = $"Wave: {currentWaveLevel}"; }
         if (timerText != null) timerText.text = $"Time: {Mathf.CeilToInt(waveTimer)}";
-        if (levelText != null && spawner != null) { levelText.text = $"Level: {currentWaveLevel}"; }
+        if (levelText != null && spawner != null) { levelText.text = $"Level: {player.playerLevel}"; }
     }
 
     public void ContinueAfterUpgrade()

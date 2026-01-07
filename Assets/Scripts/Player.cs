@@ -25,20 +25,23 @@ public class Player : MonoBehaviour
 
     public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
 
+    [Header("Player Stats")]
+    public float moveSpeed = 6f;
+    public int maxHp = 10;
+    public int strength = 0;
+    public int fireRate = 0;
+
     [Header("Movement")]
     Rigidbody2D rb;
     Vector2 inputMove;
-    public float moveSpeed = 6f;
 
     [Header("Health")]
-    public int maxHp = 10;
     public int currentHp;
 
     [Header("Combat")]
     Bullet bullet;
     public GameObject bulletPrefab;
-    public Transform firePoint; // boş child objesi (player'ın üstünde)
-    // float shootTimer;
+    public Transform firePoint;
 
     [Header("Knockback")]
     public float knockbackStrength = 6f;
@@ -77,7 +80,7 @@ public class Player : MonoBehaviour
             {
                 Fire(slot);
                 Debug.Log(slot.type + "fired!");
-                slot.timer = slot.interval;
+                slot.timer = Mathf.Max(0.1f, slot.interval - (fireRate * 0.05f));
             }
         }
 
@@ -151,7 +154,7 @@ public class Player : MonoBehaviour
         Bullet bullet = b.GetComponent<Bullet>();
         if (bullet == null) return;
 
-        bullet.damage = damage;
+        bullet.damage = damage + strength;
         bullet.SetDirection(dir);
     }
 
@@ -192,7 +195,7 @@ public class Player : MonoBehaviour
             playerLevel += 1;
             currentXp -= xpToNextLevel;
             xpToNextLevel += 5; // sonraki seviye için gereken XP artışı
-            ApplyRandomUpgrade();
+            // ApplyRandomUpgrade();
         }
     }
 
@@ -289,5 +292,26 @@ public class Player : MonoBehaviour
 
             SpawnBullet(rotatedDir, slot.damage);
         }
+    }
+
+    public void IncreaseStrength(int amount)
+    {
+        strength += amount;
+    }
+
+    public void IncreaseMoveSpeed(float amount)
+    {
+        moveSpeed += amount;
+    }
+
+    public void IncreaseFireRate(int amount)
+    {
+        fireRate += amount;
+    }
+
+    public void IncreaseMaxHealth(int amount)
+    {
+        maxHp += amount;
+        currentHp += amount;
     }
 }
