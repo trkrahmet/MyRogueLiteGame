@@ -13,7 +13,7 @@ public class UpgradePanel : MonoBehaviour
     private enum UpgradeType
     {
         Strength,
-        FireRate,
+        AttackSpeed,
         MaxHealth,
         MoveSpeed
     }
@@ -74,23 +74,70 @@ public class UpgradePanel : MonoBehaviour
         thirdRerollButton.interactable = true;
 
         // 3 kartı doldur
-        RollChoice(0);
-        RollChoice(1);
-        RollChoice(2);
+        RollChoiceUnique(0, false);
+        RollChoiceUnique(1, false);
+        RollChoiceUnique(2, false);
+
 
         RefreshTexts();
     }
 
-    private void RollChoice(int index)
+    private string GetKey(UpgradeChoice c)
     {
-        // 4 tipten birini random seç
+        return $"{c.type}_{c.value}";
+    }
+
+    private void RollChoiceUnique(int index, bool isReroll)
+    {
+        // 1) Yasakları topla
+        // Diğer kartlarda görünen seçimler yasak
+        var banned = new System.Collections.Generic.HashSet<string>();
+        for (int i = 0; i < 3; i++)
+        {
+            if (i == index) continue;
+
+            // Eğer o slot daha önce roll edildiyse (value > 0) ekle
+            if (choices[i].value > 0)
+                banned.Add(GetKey(choices[i]));
+        }
+
+        // Reroll ise kendi eski seçeneğini de yasakla
+        string oldKey = null;
+        if (isReroll && choices[index].value > 0)
+        {
+            oldKey = GetKey(choices[index]);
+            banned.Add(oldKey);
+        }
+
+        // 2) Deneyerek bul (sonsuz döngü yok)
+        const int maxTries = 20;
+        UpgradeChoice candidate = default;
+
+        for (int t = 0; t < maxTries; t++)
+        {
+            candidate = GenerateRandomChoice();   // birazdan yazacağız
+            var key = GetKey(candidate);
+
+            if (!banned.Contains(key))
+            {
+                choices[index] = candidate;
+                return;
+            }
+        }
+
+        // Bulamadıysa: en son denemeyi bas (çok nadir olur)
+        choices[index] = candidate;
+    }
+
+    private UpgradeChoice GenerateRandomChoice()
+    {
         UpgradeType[] possibleTypes =
         {
-            UpgradeType.Strength,
-            UpgradeType.MoveSpeed,
-            UpgradeType.FireRate,
-            UpgradeType.MaxHealth
-        };
+        UpgradeType.Strength,
+        UpgradeType.MoveSpeed,
+        UpgradeType.AttackSpeed,
+        UpgradeType.MaxHealth
+    };
 
         UpgradeType type = possibleTypes[Random.Range(0, possibleTypes.Length)];
 
@@ -105,12 +152,12 @@ public class UpgradePanel : MonoBehaviour
                 value = Random.Range(1, 3); // 1-2
                 break;
 
-            case UpgradeType.FireRate:
+            case UpgradeType.AttackSpeed:
                 value = Random.Range(1, 3); // 1-2
                 break;
 
             case UpgradeType.MaxHealth:
-                value = (Random.value < 0.5f) ? 2 : 4; // 2 veya 4
+                value = (Random.value < 0.5f) ? 2 : 4;
                 break;
 
             default:
@@ -118,7 +165,7 @@ public class UpgradePanel : MonoBehaviour
                 break;
         }
 
-        choices[index] = new UpgradeChoice { type = type, value = value };
+        return new UpgradeChoice { type = type, value = value };
     }
 
     private void RefreshTexts()
@@ -132,9 +179,9 @@ public class UpgradePanel : MonoBehaviour
     {
         switch (c.type)
         {
-            case UpgradeType.Strength:  return $"Strength +{c.value}";
+            case UpgradeType.Strength: return $"Strength +{c.value}";
             case UpgradeType.MoveSpeed: return $"Move Speed +{c.value}";
-            case UpgradeType.FireRate:  return $"Fire Rate +{c.value}";
+            case UpgradeType.AttackSpeed: return $"Attack Speed +{c.value}%";
             case UpgradeType.MaxHealth: return $"Max Health +{c.value}";
             default: return "-";
         }
@@ -142,18 +189,12 @@ public class UpgradePanel : MonoBehaviour
 
     private void OnAugmentSelected(int index)
     {
-        // Güvenlik: choice hiç roll edilmediyse (value 0) burada roll et
-        if (choices[index].value <= 0)
-        {
-            RollChoice(index);
-            RefreshTexts();
-        }
-
         ApplyChoiceToPlayer(choices[index]);
 
         // panel kapan + oyun devam
         gameObject.SetActive(false);
-        gameManager.ContinueAfterUpgrade();
+        gameManager.OnUpgradeChosen();
+
     }
 
     private void ApplyChoiceToPlayer(UpgradeChoice c)
@@ -170,8 +211,8 @@ public class UpgradePanel : MonoBehaviour
                 player.IncreaseMoveSpeed(c.value);
                 break;
 
-            case UpgradeType.FireRate:
-                player.IncreaseFireRate(c.value);
+            case UpgradeType.AttackSpeed:
+                player.IncreaseAttackSpeed(c.value);
                 break;
 
             case UpgradeType.MaxHealth:
@@ -184,7 +225,7 @@ public class UpgradePanel : MonoBehaviour
     {
         if (rerollUsed[index]) return;
 
-        RollChoice(index);
+        RollChoiceUnique(index, true);
         rerollUsed[index] = true;
 
         if (index == 0) firstRerollButton.interactable = false;

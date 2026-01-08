@@ -19,6 +19,8 @@ public class GameManager : MonoBehaviour
     public TMP_Text levelText;
     [SerializeField] UpgradePanel upgradePanel;
 
+    public int remainingUpgradePicks = 0;
+
     private void Start()
     {
         if (spawner == null) spawner = FindFirstObjectByType<EnemySpawner>();
@@ -68,8 +70,39 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 0f;
 
         UpdateUI();
+
+        remainingUpgradePicks = player != null ? player.pendingUpgradePoints : 0;
+
+        if (remainingUpgradePicks > 0)
+        {
+            ShowNextUpgradePick();
+        }
+        else
+        {
+            ContinueAfterUpgrade();
+        }
+
         Debug.Log($"Wave {currentWaveLevel} ended. Prepare for upgrades!");
+    }
+
+    private void ShowNextUpgradePick()
+    {
         upgradePanel.Open();
+    }
+
+    public void OnUpgradeChosen()
+    {
+        remainingUpgradePicks--;
+        player.pendingUpgradePoints--;
+
+        if (remainingUpgradePicks > 0)
+        {
+            ShowNextUpgradePick();
+        }
+        else
+        {
+            ContinueAfterUpgrade();
+        }
     }
 
     private void UpdateUI()

@@ -30,6 +30,8 @@ public class Player : MonoBehaviour
     public int maxHp = 10;
     public int strength = 0;
     public int fireRate = 0;
+    public float attackSpeedMultiplier = 1f;
+    public int pendingUpgradePoints = 0;
 
     [Header("Movement")]
     Rigidbody2D rb;
@@ -79,8 +81,7 @@ public class Player : MonoBehaviour
             if (slot.timer <= 0f)
             {
                 Fire(slot);
-                Debug.Log(slot.type + "fired!");
-                slot.timer = Mathf.Max(0.1f, slot.interval - (fireRate * 0.05f));
+                slot.timer = slot.interval / attackSpeedMultiplier;
             }
         }
 
@@ -195,42 +196,7 @@ public class Player : MonoBehaviour
             playerLevel += 1;
             currentXp -= xpToNextLevel;
             xpToNextLevel += 5; // sonraki seviye için gereken XP artışı
-            // ApplyRandomUpgrade();
-        }
-    }
-
-    private void ApplyRandomUpgrade()
-    {
-        int choice = Random.Range(0, 4);
-        switch (choice)
-        {
-            case 0:
-                maxHp += 2;
-                currentHp += 2;
-                Debug.Log("Max HP increased!");
-                break;
-            case 1:
-                moveSpeed += 1f;
-                Debug.Log("Move Speed increased!");
-                break;
-            case 2:
-                for (int i = 0; i < weaponSlots.Count; i++)
-                {
-                    if (weaponSlots == null || weaponSlots.Count == 0) return;
-
-                    weaponSlots[i].interval = Mathf.Max(0.1f, weaponSlots[i].interval - 0.05f);
-                    Debug.Log("Fire Rate increased! (interval decreased)");
-                }
-                break;
-            case 3:
-                for (int i = 0; i < weaponSlots.Count; i++)
-                {
-                    if (weaponSlots == null || weaponSlots.Count == 0) return;
-
-                    weaponSlots[i].damage += 1;
-                    Debug.Log("Damage increased!");
-                }
-                break;
+            pendingUpgradePoints += 1;
         }
     }
 
@@ -304,9 +270,9 @@ public class Player : MonoBehaviour
         moveSpeed += amount;
     }
 
-    public void IncreaseFireRate(int amount)
+    public void IncreaseAttackSpeed(int percent)
     {
-        fireRate += amount;
+        attackSpeedMultiplier += percent;
     }
 
     public void IncreaseMaxHealth(int amount)
