@@ -10,6 +10,7 @@ public class Player : MonoBehaviour
     public class WeaponSlot
     {
         public WeaponType type;
+        public bool isActive;
         public float interval;
         public float timer;
         public int damage;
@@ -29,7 +30,6 @@ public class Player : MonoBehaviour
     public float moveSpeed = 6f;
     public int maxHp = 10;
     public int strength = 0;
-    public int fireRate = 0;
     public float attackSpeedMultiplier = 1f;
     public int pendingUpgradePoints = 0;
 
@@ -41,9 +41,9 @@ public class Player : MonoBehaviour
     public int currentHp;
 
     [Header("Combat")]
-    Bullet bullet;
     public GameObject bulletPrefab;
     public Transform firePoint;
+    public int maxWeaponSlots = 6;
 
     [Header("Knockback")]
     public float knockbackStrength = 6f;
@@ -62,9 +62,14 @@ public class Player : MonoBehaviour
 
     void Awake()
     {
-        bullet = FindFirstObjectByType<Bullet>();
         rb = GetComponent<Rigidbody2D>();
         currentHp = maxHp;
+
+        for (int i = 0; i < weaponSlots.Count; i++)
+        {
+            weaponSlots[i].isActive = (i == 0); // sadece ilk silah aktif
+        }
+
     }
 
     void Update()
@@ -76,22 +81,17 @@ public class Player : MonoBehaviour
         for (int i = 0; i < weaponSlots.Count; i++)
         {
             WeaponSlot slot = weaponSlots[i];
+            if (!slot.isActive) continue;
 
             slot.timer -= Time.deltaTime;
             if (slot.timer <= 0f)
             {
                 Fire(slot);
-                slot.timer = slot.interval / attackSpeedMultiplier;
+                slot.timer = Mathf.Max(0.08f, slot.interval / attackSpeedMultiplier);
             }
         }
-
-        // shootTimer -= Time.deltaTime;
-        // if (shootTimer <= 0f)
-        // {
-        //     ShootNearestEnemy();
-        //     shootTimer = fireRate;
-        // }
     }
+
 
     void FixedUpdate()
     {
@@ -272,8 +272,11 @@ public class Player : MonoBehaviour
 
     public void IncreaseAttackSpeed(int percent)
     {
-        attackSpeedMultiplier += percent;
+        float p = percent / 100f;                 // 2 -> 0.02
+        attackSpeedMultiplier *= (1f + p);        // 1.00 -> 1.02
+        attackSpeedMultiplier = Mathf.Min(attackSpeedMultiplier, 3f); // güvenlik cap
     }
+
 
     public void IncreaseMaxHealth(int amount)
     {
