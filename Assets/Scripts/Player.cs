@@ -59,6 +59,7 @@ public class Player : MonoBehaviour
     public int playerLevel = 1;
     public int currentXp = 0;
     public int xpToNextLevel = 5;
+    public int gold = 0;
 
     void Awake()
     {
@@ -92,7 +93,6 @@ public class Player : MonoBehaviour
         }
     }
 
-
     void FixedUpdate()
     {
         // i-frame timer
@@ -110,6 +110,15 @@ public class Player : MonoBehaviour
         Vector2 finalVel = (inputMove * moveSpeed) + knockbackVel;
         rb.MovePosition(rb.position + finalVel * Time.fixedDeltaTime);
     }
+
+    public bool TrySpendGold(int cost)
+    {
+        if (gold < cost) { return false; }
+        gold -= cost;
+        return true;
+    }
+
+    public void AddGold(int amount) => gold += amount;
 
     Transform FindNearestEnemy()
     {
