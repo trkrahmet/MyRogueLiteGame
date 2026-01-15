@@ -20,6 +20,7 @@ public class Player : MonoBehaviour
 
     public enum WeaponType
     {
+        None,
         Rifle,
         Shotgun
     }
@@ -71,6 +72,7 @@ public class Player : MonoBehaviour
             weaponSlots[i].isActive = (i == 0); // sadece ilk silah aktif
         }
 
+        InitWeaponSlots();
     }
 
     void Update()
@@ -119,6 +121,24 @@ public class Player : MonoBehaviour
     }
 
     public void AddGold(int amount) => gold += amount;
+
+    void InitWeaponSlots()
+    {
+        weaponSlots.Clear();
+
+        for (int i = 0; i < maxWeaponSlots; i++)
+        {
+            weaponSlots.Add(new WeaponSlot
+            {
+                isActive = false,
+                type = WeaponType.None
+            });
+        }
+
+        weaponSlots[0] = CreateDefaultWeapon(WeaponType.Rifle);
+        weaponSlots[0].isActive = true;
+    }
+
 
     Transform FindNearestEnemy()
     {
@@ -231,12 +251,15 @@ public class Player : MonoBehaviour
             case WeaponType.Rifle:
                 FireRifle(slot);
                 break;
-
             case WeaponType.Shotgun:
                 FireShotgun(slot);
                 break;
+            case WeaponType.None:
+            default:
+                break;
         }
     }
+
 
     void FireRifle(WeaponSlot slot)
     {
@@ -292,4 +315,49 @@ public class Player : MonoBehaviour
         maxHp += amount;
         currentHp += amount;
     }
+
+    public bool TryAddWeapon(WeaponType type)
+    {
+        // weaponSlots listesini maxWeaponSlots kadar baştan doldurmuş olmak en sağlıklısı.
+        // Eğer doldurmadıysak, bu fonksiyon ekleyerek de büyütebilir ama ben sabit varsayıyorum.
+
+        for (int i = 0; i < weaponSlots.Count; i++)
+        {
+            if (!weaponSlots[i].isActive)
+            {
+                weaponSlots[i] = CreateDefaultWeapon(type);
+                weaponSlots[i].isActive = true;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private WeaponSlot CreateDefaultWeapon(WeaponType type)
+    {
+        WeaponSlot slot = new WeaponSlot();
+        slot.type = type;
+        slot.isActive = true;
+        slot.timer = 0f;
+
+        if (type == WeaponType.Rifle)
+        {
+            slot.interval = 0.5f;
+            slot.damage = 1;
+            slot.pelletCount = 1;
+            slot.spreadAngle = 0f;
+        }
+        else if (type == WeaponType.Shotgun)
+        {
+            slot.interval = 0.9f;
+            slot.damage = 1;
+            slot.pelletCount = 5;
+            slot.spreadAngle = 35f;
+        }
+
+        return slot;
+    }
+
+
 }

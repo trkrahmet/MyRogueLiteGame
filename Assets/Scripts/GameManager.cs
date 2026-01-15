@@ -12,17 +12,21 @@ public class GameManager : MonoBehaviour
     [Header("References")]
     public EnemySpawner spawner;
     public Player player;
+    [SerializeField] ShopPanel shopPanel;
+    [SerializeField] UpgradePanel upgradePanel;
 
     [Header("UI (TMP)")]
     public TMP_Text waveText;
     public TMP_Text timerText;
     public TMP_Text levelText;
-    [SerializeField] UpgradePanel upgradePanel;
 
     public int remainingUpgradePicks = 0;
 
     private void Start()
     {
+        if (shopPanel == null) shopPanel = FindFirstObjectByType<ShopPanel>();
+        if (shopPanel != null) shopPanel.CloseShop();
+
         if (spawner == null) spawner = FindFirstObjectByType<EnemySpawner>();
         if (player == null) player = FindFirstObjectByType<Player>();
 
@@ -36,8 +40,6 @@ public class GameManager : MonoBehaviour
     {
         if (!inCombat)
         {
-            if (Input.GetKeyDown(KeyCode.Return))
-                ContinueAfterUpgrade();
             return;
         }
 
@@ -79,7 +81,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            ContinueAfterUpgrade();
+            shopPanel.OpenShop();
         }
 
         Debug.Log($"Wave {currentWaveLevel} ended. Prepare for upgrades!");
@@ -101,7 +103,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            ContinueAfterUpgrade();
+            shopPanel.OpenShop();
         }
     }
 
@@ -112,7 +114,7 @@ public class GameManager : MonoBehaviour
         if (levelText != null && spawner != null) { levelText.text = $"Level: {player.playerLevel}"; }
     }
 
-    public void ContinueAfterUpgrade()
+    public void ContinueForNextLevel()
     {
         currentWaveLevel++;
         spawner.ApplyWaveSettings(currentWaveLevel);
