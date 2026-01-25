@@ -204,19 +204,19 @@ public class UpgradePanel : MonoBehaviour
         switch (c.type)
         {
             case UpgradeType.Strength:
-                player.IncreaseStrength(c.value);
+                player.ChangeStrength(c.value);
                 break;
 
             case UpgradeType.MoveSpeed:
-                player.IncreaseMoveSpeed(c.value);
+                player.ChangeMoveSpeed(c.value);
                 break;
 
             case UpgradeType.AttackSpeed:
-                player.IncreaseAttackSpeed(c.value);
+                player.ChangeAttackSpeedPercent(c.value);
                 break;
 
             case UpgradeType.MaxHealth:
-                player.IncreaseMaxHealth(c.value);
+                player.ChangeMaxHealth(c.value);
                 break;
         }
     }

@@ -1626,7 +1626,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &401856749
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1705,7 +1705,58 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gameManager: {fileID: 1030860143}
   player: {fileID: 1194565598}
+  statItemPool:
+  - title: Heavy Armor
+    desc: Increases maximum health but decreases attack speed
+    cost: 9
+    deltas:
+    - stat: 1
+      intDelta: 10
+      floatDelta: 0
+    - stat: 3
+      intDelta: -2
+      floatDelta: 0
+    icon: {fileID: 36007233, guid: d2aeaa5dcbf02054ab037c8110873bd6, type: 3}
+  - title: ddd
+    desc: asdd
+    cost: 5
+    deltas:
+    - stat: 2
+      intDelta: 0
+      floatDelta: -6.6
+    icon: {fileID: 489770794, guid: d2aeaa5dcbf02054ab037c8110873bd6, type: 3}
+  - title: asdad
+    desc: asdasd
+    cost: 8
+    deltas:
+    - stat: 0
+      intDelta: 10
+      floatDelta: 0
+    icon: {fileID: -839071744, guid: d2aeaa5dcbf02054ab037c8110873bd6, type: 3}
+  - title: aaaa
+    desc: adsadsd
+    cost: 3
+    deltas:
+    - stat: 2
+      intDelta: 0
+      floatDelta: 40
+    icon: {fileID: -645926155, guid: d2aeaa5dcbf02054ab037c8110873bd6, type: 3}
+  - title: asd
+    desc: asd
+    cost: 0
+    deltas:
+    - stat: 3
+      intDelta: 3
+      floatDelta: 0
+    icon: {fileID: 1189575795, guid: d2aeaa5dcbf02054ab037c8110873bd6, type: 3}
   coinText: {fileID: 874064097}
+  itemImage0: {fileID: 1763752284}
+  itemImage1: {fileID: 384291873}
+  itemImage2: {fileID: 1297491631}
+  itemImage3: {fileID: 300452345}
+  rifleIcon: {fileID: 1782017694, guid: d2aeaa5dcbf02054ab037c8110873bd6, type: 3}
+  shotgunIcon: {fileID: -808896492, guid: d2aeaa5dcbf02054ab037c8110873bd6, type: 3}
+  defaultIcon: {fileID: 1573193851, guid: d2aeaa5dcbf02054ab037c8110873bd6, type: 3}
   itemText0: {fileID: 113537337}
   itemText1: {fileID: 349850456}
   itemText2: {fileID: 954545595}
@@ -1714,6 +1765,8 @@ MonoBehaviour:
   buyButton1: {fileID: 735397212}
   buyButton2: {fileID: 1330917196}
   buyButton3: {fileID: 84212855}
+  refreshCost: 5
+  refreshCostText: {fileID: 303260876}
 --- !u!1 &445426235
 GameObject:
   m_ObjectHideFlags: 0
@@ -5279,7 +5332,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1632285394}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 401856752}
+        m_TargetAssemblyTypeName: ShopPanel, Assembly-CSharp
+        m_MethodName: OnRefreshButton
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &1632285394
 MonoBehaviour:
   m_ObjectHideFlags: 0

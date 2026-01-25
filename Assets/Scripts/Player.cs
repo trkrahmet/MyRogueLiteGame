@@ -292,28 +292,26 @@ public class Player : MonoBehaviour
         }
     }
 
-    public void IncreaseStrength(int amount)
+    public void ChangeStrength(int delta) => strength += delta;
+
+    public void ChangeMoveSpeed(float delta)
     {
-        strength += amount;
+        moveSpeed = Mathf.Max(0.5f, moveSpeed + delta);
     }
 
-    public void IncreaseMoveSpeed(float amount)
+    public void ChangeAttackSpeedPercent(int deltaPercent)
     {
-        moveSpeed += amount;
-    }
-
-    public void IncreaseAttackSpeed(int percent)
-    {
-        float p = percent / 100f;                 // 2 -> 0.02
-        attackSpeedMultiplier *= (1f + p);        // 1.00 -> 1.02
-        attackSpeedMultiplier = Mathf.Min(attackSpeedMultiplier, 3f); // güvenlik cap
+        // attackSpeedMultiplier 1.0 = %100
+        // +10% => +0.10
+        float delta = deltaPercent / 100f;
+        attackSpeedMultiplier = Mathf.Clamp(attackSpeedMultiplier + delta, 0.2f, 5f);
     }
 
 
-    public void IncreaseMaxHealth(int amount)
+    public void ChangeMaxHealth(int delta)
     {
-        maxHp += amount;
-        currentHp += amount;
+        maxHp = Mathf.Max(1, maxHp + delta);
+        currentHp = Mathf.Clamp(currentHp + delta, 0, maxHp);
     }
 
     public bool TryAddWeapon(WeaponType type)
