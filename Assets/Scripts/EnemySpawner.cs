@@ -22,11 +22,15 @@ public class EnemySpawner : MonoBehaviour
 
     [SerializeField] GameObject enemyPrefab;
     [SerializeField] GameObject enemyTankPrefab;
+    [SerializeField] GameObject enemyElitePrefab;
+    [SerializeField] GameObject enemyBossPrefab;
 
     [Header("Spawn")]
     [SerializeField] float spawnInterval = 1f;
     [SerializeField] int maxAliveEnemies = 50;
-    [SerializeField] float outsideOffset = 0.05f;
+    private int currentWaveLevel = 1;
+    private bool bossSpawned = false;
+
 
     float spawnTimer;
     public bool spawningEnabled = true;
@@ -57,6 +61,18 @@ public class EnemySpawner : MonoBehaviour
         if (GameObject.FindGameObjectsWithTag("Enemy").Length >= maxAliveEnemies)
             return;
 
+        // Boss wave ise 1 kere boss spawnla
+        if (IsBossWave(currentWaveLevel) && !bossSpawned && enemyBossPrefab != null)
+        {
+            // Boss'u map alanından bir noktaya telegraph ile spawnlayalım
+            if (TryGetRandomPointInArea(out Vector3 bossPos))
+            {
+                bossSpawned = true;
+                StartCoroutine(SpawnBossWithTelegraph(bossPos));
+            }
+        }
+
+
         if (spawnTimer >= spawnInterval)
         {
             spawnTimer = 0f;
@@ -64,6 +80,34 @@ public class EnemySpawner : MonoBehaviour
 
         }
     }
+
+    IEnumerator SpawnBossWithTelegraph(Vector3 pos)
+    {
+        GameObject warning = null;
+        if (spawnWarningPrefab != null)
+            warning = Instantiate(spawnWarningPrefab, pos, Quaternion.identity);
+
+        float t = 0f;
+        while (t < telegraphDelay)
+        {
+            t += Time.deltaTime;
+
+            if (playerTransform != null && Vector2.Distance(playerTransform.position, pos) < cancelDistance)
+            {
+                // boss'u iptal etmeyelim, sadece başka yere atalım
+                // bu en basit hali: yeni pozisyon seçip devam et
+                if (TryGetRandomPointInArea(out Vector3 newPos))
+                    pos = newPos;
+            }
+
+            yield return null;
+        }
+
+        if (warning != null) Destroy(warning);
+
+        Instantiate(enemyBossPrefab, pos, Quaternion.identity);
+    }
+
 
     void TrySpawnFromMapArea()
     {
@@ -135,6 +179,9 @@ public class EnemySpawner : MonoBehaviour
 
     public void ApplyWaveSettings(int waveLevel)
     {
+        currentWaveLevel = waveLevel;
+        bossSpawned = false;
+
         // Spawn daha sık (0.2 altına düşmesin)
         spawnInterval = Mathf.Max(0.2f, 1f - (waveLevel - 1) * 0.1f);
 
@@ -178,19 +225,63 @@ public class EnemySpawner : MonoBehaviour
         return Mathf.Clamp01(baseChance);
     }
 
+    float GetEliteSpawnChance(int waveLevel)
+    {
+        // Wave 5'ten önce elite yok
+        if (waveLevel < 5) return 0f;
+
+        // 5'te %5, sonra yavaş artsın
+        float c = 0.05f + (waveLevel - 5) * 0.01f;
+        return Mathf.Clamp01(c);
+    }
+
+    bool IsBossWave(int waveLevel)
+    {
+        return waveLevel == 10;
+        // istersen sadece 10. wave: return waveLevel == 10;
+    }
+
     void SpawnEnemy(Vector3 position)
     {
-        // Level çarpanı: currentLevel'ı direkt kullanma, yumuşat
-        // L1=1.0, L2=1.1, L3=1.2, ...
-        float levelMultiplier = 1f + (gameManager.currentWaveLevel - 1) * 0.10f;
+        // Wave 5+ : elite havuza girer
+        float eliteChance = GetEliteSpawnChance(currentWaveLevel);
 
-        float chance = GetTankSpawnChance(levelMultiplier);
+        // Tank şansı: senin mevcut sistemin
+        float levelMultiplier = 1f + (currentWaveLevel - 1) * 0.10f;
+        float tankChance = GetTankSpawnChance(levelMultiplier);
 
-        bool spawnTank = (enemyTankPrefab != null) && (Random.value < chance);
+        // 1) Elite roll (önce)
+        bool spawnElite = (enemyElitePrefab != null) && (Random.value < eliteChance);
 
-        var enemy = Instantiate(spawnTank ? enemyTankPrefab : enemyPrefab, position, Quaternion.identity);
+        // 2) Elite değilse Tank roll
+        bool spawnTank = (!spawnElite) && (enemyTankPrefab != null) && (Random.value < tankChance);
+
+        // 3) Prefab seç
+        GameObject prefab = enemyPrefab;
+        if (spawnElite) prefab = enemyElitePrefab;
+        else if (spawnTank) prefab = enemyTankPrefab;
+
+        // Güvenlik
+        if (prefab == null) return;
+
+        var enemy = Instantiate(prefab, position, Quaternion.identity);
         aliveEnemies.Add(enemy);
     }
+
+
+    // void SpawnEnemy(Vector3 position)
+    // {
+    //     // Level çarpanı: currentLevel'ı direkt kullanma, yumuşat
+    //     // L1=1.0, L2=1.1, L3=1.2, ...
+    //     float levelMultiplier = 1f + (gameManager.currentWaveLevel - 1) * 0.10f;
+
+    //     float chance = GetTankSpawnChance(levelMultiplier);
+
+    //     bool spawnTank = (enemyTankPrefab != null) && (Random.value < chance);
+
+    //     var enemy = Instantiate(spawnTank ? enemyTankPrefab : enemyPrefab, position, Quaternion.identity);
+    //     aliveEnemies.Add(enemy);
+    // }
 
     public void ClearAllEnemies()
     {

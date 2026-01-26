@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class Bullet : MonoBehaviour
 {
+    [SerializeField] GameObject hitFxPrefab;
+
     [SerializeField] float speed = 12f;
     [SerializeField] float lifeTime = 2f;
     public int damage = 1;
@@ -30,6 +32,12 @@ public class Bullet : MonoBehaviour
         Enemy enemy = other.GetComponent<Enemy>();
         if (enemy != null)
             enemy.TakeDamage(damage);
+
+        if (hitFxPrefab != null)
+        {
+            Vector2 offset = Random.insideUnitCircle * 0.08f;
+            Instantiate(hitFxPrefab, (Vector2)transform.position + offset, Quaternion.identity);
+        }
 
         Destroy(gameObject);
     }

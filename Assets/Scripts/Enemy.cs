@@ -7,18 +7,71 @@ public class Enemy : MonoBehaviour
     [SerializeField] float moveSpeed = 2f;
     [SerializeField] int maxHp = 3;
     public int contactDamage = 1;
+    [SerializeField] float hitFlashDuration = 0.06f;
+    Color originalColor;
+    float hitFlashTimer;
+
+    [Header("Death Pop")]
+    [SerializeField] float deathPopDuration = 0.12f;
+    [SerializeField] float deathPopScale = 1.15f;
+
+    bool isDying = false;
+    float deathPopTimer;
+    Vector3 baseScale;
+
 
     int hp;
     Transform playerTransform;
     Rigidbody2D rb;
-    Player player;
+    SpriteRenderer sr;
 
     void Start()
     {
         hp = maxHp;
         rb = GetComponent<Rigidbody2D>();
-        player = FindFirstObjectByType<Player>();
+        sr = GetComponent<SpriteRenderer>();
+
         playerTransform = GameObject.FindGameObjectWithTag("Player").transform;
+        originalColor = sr.color;
+        baseScale = transform.localScale;
+    }
+
+    private void Update()
+    {
+        if (hitFlashTimer > 0f)
+        {
+            hitFlashTimer -= Time.deltaTime;
+
+            if (hitFlashTimer <= 0f)
+                sr.color = originalColor;
+        }
+
+        if (isDying)
+        {
+            deathPopTimer -= Time.deltaTime;
+            float t = 1f - (deathPopTimer / deathPopDuration); // 0->1
+
+            // önce hafif büyü, sonra küçül
+            float s = (t < 0.35f)
+                ? Mathf.Lerp(1f, deathPopScale, t / 0.35f)
+                : Mathf.Lerp(deathPopScale, 0f, (t - 0.35f) / 0.65f);
+
+            transform.localScale = baseScale * s;
+
+            // opsiyonel: aynı anda biraz saydamlaşsın (sprite beyazsa güzel durur)
+            if (sr != null)
+            {
+                Color c = sr.color;
+                c.a = Mathf.Lerp(1f, 0f, t);
+                sr.color = c;
+            }
+
+            if (deathPopTimer <= 0f)
+                Destroy(gameObject);
+
+            return; // ölürken başka update yapma
+        }
+
     }
 
     void FixedUpdate()
@@ -26,15 +79,36 @@ public class Enemy : MonoBehaviour
         if (playerTransform == null) return;
         Vector2 dir = ((Vector2)playerTransform.position - rb.position).normalized;
         rb.MovePosition(rb.position + dir * moveSpeed * Time.fixedDeltaTime);
+
+        if (dir.x != 0f && sr != null)
+            sr.flipX = dir.x < 0f;
     }
 
     public void TakeDamage(int amount)
     {
         hp -= amount;
+        sr.color = new Color(1f, 0.5f, 0.5f); // hafif kırmızı
+        hitFlashTimer = hitFlashDuration;
+
         if (hp <= 0)
         {
             Instantiate(xpOrbPrefab, transform.position, Quaternion.identity);
-            Destroy(gameObject);
+            Die();
         }
     }
+
+    void Die()
+    {
+        if (isDying) return;
+        isDying = true;
+        deathPopTimer = deathPopDuration;
+
+        // hareketi durdur
+        if (rb != null) rb.simulated = false;
+
+        // collider varsa kapat (2D)
+        var col = GetComponent<Collider2D>();
+        if (col != null) col.enabled = false;
+    }
+
 }

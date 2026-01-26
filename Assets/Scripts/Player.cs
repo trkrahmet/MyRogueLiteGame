@@ -26,6 +26,9 @@ public class Player : MonoBehaviour
     }
 
     public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
+    public Animator anim;
+    Vector2 lastMoveDir = Vector2.down; // varsayılan aşağı baksın
+
 
     [Header("Player Stats")]
     public float moveSpeed = 6f;
@@ -64,6 +67,7 @@ public class Player : MonoBehaviour
 
     void Awake()
     {
+        anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
         currentHp = maxHp;
 
@@ -80,6 +84,30 @@ public class Player : MonoBehaviour
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
         inputMove = new Vector2(h, v).normalized;
+
+        bool isMoving = inputMove.sqrMagnitude > 0.001f;
+
+        anim.SetBool("isMoving", isMoving);
+
+        if (isMoving)
+        {
+            lastMoveDir = inputMove;          // SON YÖNÜ KAYDET
+            anim.SetFloat("moveX", inputMove.x);
+            anim.SetFloat("moveY", inputMove.y);
+        }
+        else
+        {
+            // idle iken son yönü koru
+            anim.SetFloat("moveX", lastMoveDir.x);
+            anim.SetFloat("moveY", lastMoveDir.y);
+        }
+
+        if (lastMoveDir.x != 0)
+        {
+            Vector3 scale = transform.localScale;
+            scale.x = Mathf.Sign(lastMoveDir.x) * Mathf.Abs(scale.x);
+            transform.localScale = scale;
+        }
 
         for (int i = 0; i < weaponSlots.Count; i++)
         {

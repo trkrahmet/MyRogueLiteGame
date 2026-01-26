@@ -14,6 +14,7 @@ public class GameManager : MonoBehaviour
     public Player player;
     [SerializeField] ShopPanel shopPanel;
     [SerializeField] UpgradePanel upgradePanel;
+    [SerializeField] private Transform playerSpawnPoint;
 
     [Header("UI (TMP)")]
     public TMP_Text waveText;
@@ -48,6 +49,8 @@ public class GameManager : MonoBehaviour
         {
             EndCombat();
             spawner.ClearAllEnemies();
+            ClearAllXpOrbs();
+
             return;
         }
         UpdateUI();
@@ -116,8 +119,33 @@ public class GameManager : MonoBehaviour
 
     public void ContinueForNextLevel()
     {
+        // UI panellerinden çıkış yaptığın an burası çağrılıyor
+        ClearAllXpOrbs();
+        ResetPlayerToCenter();
+
         currentWaveLevel++;
         spawner.ApplyWaveSettings(currentWaveLevel);
-        StartCombat();
+
+        StartCombat();     // waveTimer reset + inCombat true + timeScale 1
+        UpdateUI();
+    }
+
+
+    private void ClearAllXpOrbs()
+    {
+        // XP orb’larının tag’i "XP" ise:
+        var xps = GameObject.FindGameObjectsWithTag("XP");
+        for (int i = 0; i < xps.Length; i++)
+            Destroy(xps[i]);
+    }
+
+    private void ResetPlayerToCenter()
+    {
+        if (player == null) return;
+
+        if (playerSpawnPoint != null)
+            player.transform.position = playerSpawnPoint.position;
+        else
+            player.transform.position = Vector3.zero; // spawn point bağlamadıysan 0,0
     }
 }
