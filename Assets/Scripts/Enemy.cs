@@ -11,6 +11,10 @@ public class Enemy : MonoBehaviour
     Color originalColor;
     float hitFlashTimer;
 
+    [Header("AI")]
+    [SerializeField] private bool enableChaseMovement = true;
+
+
     [Header("Death Pop")]
     [SerializeField] float deathPopDuration = 0.12f;
     [SerializeField] float deathPopScale = 1.15f;
@@ -76,13 +80,16 @@ public class Enemy : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (!enableChaseMovement) return;   // <-- kritik satır
         if (playerTransform == null) return;
+
         Vector2 dir = ((Vector2)playerTransform.position - rb.position).normalized;
         rb.MovePosition(rb.position + dir * moveSpeed * Time.fixedDeltaTime);
 
         if (dir.x != 0f && sr != null)
             sr.flipX = dir.x < 0f;
     }
+
 
     public void TakeDamage(int amount)
     {

@@ -6,6 +6,8 @@ using Random = UnityEngine.Random;
 
 public class Player : MonoBehaviour
 {
+    public Action<int, int> OnHealthChanged; // current, max
+
     [Serializable]
     public class WeaponSlot
     {
@@ -16,13 +18,22 @@ public class Player : MonoBehaviour
         public int damage;
         public int pelletCount;
         public float spreadAngle;
+        public float meleeRange;     // merkezin player’dan uzaklığı
+        public float meleeRadius;    // vurma yarıçapı
+        public int maxTargets;       // kaç hedef vurabilsin (0 = sınırsız)
+
     }
 
     public enum WeaponType
     {
         None,
-        Rifle,
-        Shotgun
+        Rifle,  // ✅ ranged
+        Shotgun,    // ✅ ranged
+        Sniper,   // ✅ ranged
+
+        Sword,    // ✅ melee
+        Spear,    // ✅ melee
+        Hammer    // ✅ melee
     }
 
     public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
@@ -36,6 +47,18 @@ public class Player : MonoBehaviour
     public int strength = 0;
     public float attackSpeedMultiplier = 1f;
     public int pendingUpgradePoints = 0;
+
+    [Header("Defense / Utility Stats")]
+    public int armor = 0;                 // flat hasar azaltma
+    public float hpRegenPerSec = 0f;      // saniye başı can
+    public float pickupRangeBonus = 0f;   // +metre (XpOrb attractRadius’a eklenecek)
+
+    private float regenAccumulator = 0f;  // regen fractional biriksin
+
+    [Header("Critical Stats")]
+    [Range(0f, 100f)]
+    public float critChance = 0f;      // %
+    public float critMultiplier = 1.75f; // sabit (%75 extra)
 
     [Header("Movement")]
     Rigidbody2D rb;
@@ -65,11 +88,20 @@ public class Player : MonoBehaviour
     public int xpToNextLevel = 5;
     public int gold = 0;
 
+    [Header("Melee VFX")]
+    [SerializeField] private SpearLineVFX spearStabPrefab;
+    [SerializeField] private HammerImpactVFX hammerRingPrefab;
+
+    [Header("RNG")]
+    [Range(0f, 100f)]
+    public float luck = 0f;
+
     void Awake()
     {
         anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
         currentHp = maxHp;
+        NotifyHealthUI();
 
         for (int i = 0; i < weaponSlots.Count; i++)
         {
@@ -121,6 +153,8 @@ public class Player : MonoBehaviour
                 slot.timer = Mathf.Max(0.08f, slot.interval / attackSpeedMultiplier);
             }
         }
+
+        TickRegen();
     }
 
     void FixedUpdate()
@@ -139,6 +173,23 @@ public class Player : MonoBehaviour
 
         Vector2 finalVel = (inputMove * moveSpeed) + knockbackVel;
         rb.MovePosition(rb.position + finalVel * Time.fixedDeltaTime);
+    }
+
+    private void TickRegen()
+    {
+        if (hpRegenPerSec <= 0f) return;
+        if (currentHp <= 0) return;
+        if (currentHp >= maxHp) return;
+
+        regenAccumulator += hpRegenPerSec * Time.deltaTime;
+
+        // 0.2 gibi değerlerde de çalışsın diye integer’a çevirip basıyoruz
+        int heal = Mathf.FloorToInt(regenAccumulator);
+        if (heal <= 0) return;
+
+        regenAccumulator -= heal;
+        currentHp = Mathf.Clamp(currentHp + heal, 0, maxHp);
+        NotifyHealthUI();
     }
 
     public bool TrySpendGold(int cost)
@@ -259,12 +310,15 @@ public class Player : MonoBehaviour
 
     void TakeDamage(int amount)
     {
-        currentHp -= amount;
+        int finalDamage = Mathf.Max(1, amount - armor); // ✅ armor
+        currentHp -= finalDamage;
+
         if (currentHp <= 0)
         {
             currentHp = 0;
             Die();
         }
+        NotifyHealthUI();
     }
 
     void Die()
@@ -279,13 +333,102 @@ public class Player : MonoBehaviour
             case WeaponType.Rifle:
                 FireRifle(slot);
                 break;
+
             case WeaponType.Shotgun:
                 FireShotgun(slot);
                 break;
-            case WeaponType.None:
-            default:
+
+            case WeaponType.Sniper:
+                FireSniper(slot);
+                break;
+
+            case WeaponType.Sword:
+            case WeaponType.Spear:
+            case WeaponType.Hammer:
+                FireMelee(slot);
                 break;
         }
+    }
+
+    void FireMelee(WeaponSlot slot)
+    {
+        Vector2 dir;
+        if (!TryGetDirectionToNearest(out dir))
+            dir = lastMoveDir.sqrMagnitude > 0.01f ? lastMoveDir : Vector2.down;
+
+        dir = dir.normalized;
+
+        // hit alanı merkezi
+        Vector2 center = (Vector2)transform.position + dir * slot.meleeRange;
+
+        // ✅ 1) Hasar (mevcut yöntem)
+        Collider2D[] hits = Physics2D.OverlapCircleAll(center, slot.meleeRadius);
+
+        int dealt = 0;
+        int limit = slot.maxTargets; // 0 => sınırsız
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (!hits[i].CompareTag("Enemy")) continue;
+
+            Enemy e = hits[i].GetComponentInParent<Enemy>();
+            if (e == null) continue;
+
+            e.TakeDamage(slot.damage + strength);
+
+            dealt++;
+            if (limit > 0 && dealt >= limit) break;
+        }
+
+        // ✅ 2) VFX (vuruyor mu hissi)
+        SpawnMeleeVFX(slot, dir, center);
+    }
+
+    void SpawnMeleeVFX(WeaponSlot slot, Vector2 dir, Vector2 center)
+    {
+        switch (slot.type)
+        {
+            case WeaponType.Hammer:
+                {
+                    if (hammerRingPrefab == null) return;
+                    var vfx = Instantiate(hammerRingPrefab);
+                    vfx.Play(center);
+                    break;
+                }
+
+            case WeaponType.Spear:
+                {
+                    if (spearStabPrefab == null) return;
+
+                    Vector2 start = (Vector2)transform.position + dir * 0.2f;
+                    Vector2 end = (Vector2)transform.position + dir * (slot.meleeRange + slot.meleeRadius + 0.55f);
+
+                    var vfx = Instantiate(spearStabPrefab);
+                    vfx.Play(start, end);
+                    break;
+                }
+
+            case WeaponType.Sword:
+                {
+                    // Sword'a şimdilik "kısa, geniş slash" (spear stab prefab’ıyla da yapılabilir)
+                    if (spearStabPrefab == null) return;
+
+                    Vector2 right = new Vector2(-dir.y, dir.x);
+                    Vector2 start = center - right * (slot.meleeRadius * 0.9f);
+                    Vector2 end = center + right * (slot.meleeRadius * 0.9f);
+
+                    var vfx = Instantiate(spearStabPrefab);
+                    vfx.Play(start, end);
+                    break;
+                }
+        }
+    }
+
+
+    void FireSniper(WeaponSlot slot)
+    {
+        if (!TryGetDirectionToNearest(out Vector2 dir)) return;
+        SpawnBullet(dir, slot.damage);
     }
 
 
@@ -340,6 +483,36 @@ public class Player : MonoBehaviour
     {
         maxHp = Mathf.Max(1, maxHp + delta);
         currentHp = Mathf.Clamp(currentHp + delta, 0, maxHp);
+        NotifyHealthUI();
+    }
+
+    public int CurrentHp => currentHp;
+    public int MaxHp => maxHp;
+
+
+    public void ChangeArmor(int delta)
+    {
+        armor = Mathf.Clamp(armor + delta, 0, 999);
+    }
+
+    public void ChangeHpRegen(float delta)
+    {
+        hpRegenPerSec = Mathf.Max(0f, hpRegenPerSec + delta);
+    }
+
+    public void ChangePickupRange(float delta)
+    {
+        pickupRangeBonus = Mathf.Clamp(pickupRangeBonus + delta, 0f, 50f);
+    }
+
+    public void ChangeCritChance(float delta)
+    {
+        critChance = Mathf.Clamp(critChance + delta, 0f, 100f);
+    }
+
+    public void ChangeLuck(float delta)
+    {
+        luck = Mathf.Clamp(luck + delta, 0f, 100f);
     }
 
     public bool TryAddWeapon(WeaponType type)
@@ -381,9 +554,44 @@ public class Player : MonoBehaviour
             slot.pelletCount = 5;
             slot.spreadAngle = 35f;
         }
+        else if (type == WeaponType.Sniper)
+        {
+            slot.interval = 1.25f;  // yavaş
+            slot.damage = 4;        // yüksek
+            slot.pelletCount = 1;
+            slot.spreadAngle = 0f;
+        }
+        else if (type == WeaponType.Sword)
+        {
+            slot.interval = 0.40f;  // hızlı
+            slot.damage = 2;
+            slot.meleeRange = 1.5f;
+            slot.meleeRadius = 0.55f;
+            slot.maxTargets = 1;    // tek hedef hissi
+        }
+        else if (type == WeaponType.Spear)
+        {
+            slot.interval = 0.60f;  // orta
+            slot.damage = 2;
+            slot.meleeRange = 2f; // daha uzak
+            slot.meleeRadius = 0.40f;
+            slot.maxTargets = 2;    // delip 2 hedefe vurma hissi
+        }
+        else if (type == WeaponType.Hammer)
+        {
+            slot.interval = 0.95f;  // yavaş
+            slot.damage = 3;
+            slot.meleeRange = 1f;
+            slot.meleeRadius = 0.90f; // geniş alan
+            slot.maxTargets = 0;    // sınırsız (AoE)
+        }
 
         return slot;
     }
 
+    private void NotifyHealthUI()
+    {
+        OnHealthChanged?.Invoke(currentHp, maxHp);
+    }
 
 }

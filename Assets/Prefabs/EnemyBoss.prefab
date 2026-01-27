@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3928687773477092871}
   - component: {fileID: 716200757877600454}
+  - component: {fileID: 2313531151189595362}
   - component: {fileID: 7760342538756143259}
   - component: {fileID: 5743719832091471153}
   - component: {fileID: 23931276594534575}
@@ -91,6 +92,27 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &2313531151189595362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1230465153184335238}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff2922283d3ecab41912913fd5c18011, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mode: 0
+  player: {fileID: 0}
+  rb: {fileID: 0}
+  chaseSpeed: 1.8
+  patrolSpeed: 1.2
+  patrolRadius: 4
+  bulletPrefab: {fileID: 0}
+  shootInterval: 1.2
+  sr: {fileID: 0}
 --- !u!114 &7760342538756143259
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -108,6 +130,7 @@ MonoBehaviour:
   maxHp: 50
   contactDamage: 8
   hitFlashDuration: 0.06
+  enableChaseMovement: 0
   deathPopDuration: 0.12
   deathPopScale: 1.15
 --- !u!50 &5743719832091471153
@@ -118,7 +141,7 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1230465153184335238}
-  m_BodyType: 1
+  m_BodyType: 0
   m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0

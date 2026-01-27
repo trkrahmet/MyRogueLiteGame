@@ -7,6 +7,8 @@ public class ShopPanel : MonoBehaviour
 {
     // -------------------- DATA --------------------
 
+    private enum Rarity { Common, Uncommon, Rare, Epic, Legendary }
+
     private enum OfferType
     {
         StatItem,
@@ -18,7 +20,12 @@ public class ShopPanel : MonoBehaviour
         Strength,
         MaxHealth,
         MoveSpeed,
-        AttackSpeedPercent
+        AttackSpeedPercent,
+        Armor,          // ✅
+        HpRegen,        // ✅ (floatDelta)
+        PickupRange,     // ✅ (floatDelta)
+        CriticalChance,
+        Luck
     }
 
     [Serializable]
@@ -36,6 +43,8 @@ public class ShopPanel : MonoBehaviour
     [Serializable]
     private class StatItemDefinition
     {
+        public Rarity rarity = Rarity.Common;
+        public int weight = 100; // aynı rarity içindeki itemlar arasında seçim ağırlığı
         public string title;
         [TextArea(1, 2)] public string desc;
         public int cost = 10;
@@ -78,8 +87,11 @@ public class ShopPanel : MonoBehaviour
     [Header("Weapon Icons")]
     [SerializeField] private Sprite rifleIcon;
     [SerializeField] private Sprite shotgunIcon;
+    [SerializeField] private Sprite sniperIcon;
+    [SerializeField] private Sprite swordIcon;
+    [SerializeField] private Sprite spearIcon;
+    [SerializeField] private Sprite hammerIcon;
     [SerializeField] private Sprite defaultIcon;
-
 
     [SerializeField] private TMP_Text itemText0;
     [SerializeField] private TMP_Text itemText1;
@@ -185,14 +197,24 @@ public class ShopPanel : MonoBehaviour
 
         if (statItemPool == null || statItemPool.Length == 0)
         {
-            // Havuz boşsa güvenlik: basit bir default item üret
             o.statItemIndex = -1;
             return o;
         }
 
-        o.statItemIndex = UnityEngine.Random.Range(0, statItemPool.Length);
+        // Luck’a göre rarity seç
+        Rarity r = RollRarityWithLuck();
+
+        // O rarity’den item seç; yoksa bir alt rarity’ye düş
+        int idx = PickStatItemIndexByRarity(r);
+        if (idx < 0 && r != Rarity.Common)
+            idx = PickStatItemIndexByRarity(r - 1); // Uncommon->Common gibi
+
+        if (idx < 0) idx = UnityEngine.Random.Range(0, statItemPool.Length);
+
+        o.statItemIndex = idx;
         return o;
     }
+
 
     private Offer RollWeaponOffer()
     {
@@ -207,12 +229,22 @@ public class ShopPanel : MonoBehaviour
 
     private Player.WeaponType RollWeaponType()
     {
-        // None varsa onu seçmesin diye filtreliyorum
-        // (Enum’unda None yoksa sorun değil)
-        // Şimdilik Rifle + Shotgun
-        int r = UnityEngine.Random.Range(0, 2);
-        return (r == 0) ? Player.WeaponType.Rifle : Player.WeaponType.Shotgun;
+        // burada hangi silahların shop’ta çıkacağını belirliyorsun
+        Player.WeaponType[] pool =
+        {
+        Player.WeaponType.Rifle,
+        Player.WeaponType.Shotgun,
+
+        Player.WeaponType.Sniper,
+        Player.WeaponType.Sword,
+        Player.WeaponType.Spear,
+        Player.WeaponType.Hammer
+    };
+
+        int r = UnityEngine.Random.Range(0, pool.Length);
+        return pool[r];
     }
+
 
     private int WeaponCost(Player.WeaponType wt)
     {
@@ -220,9 +252,17 @@ public class ShopPanel : MonoBehaviour
         {
             case Player.WeaponType.Rifle: return 25;
             case Player.WeaponType.Shotgun: return 30;
+
+            case Player.WeaponType.Sniper: return 40;
+
+            case Player.WeaponType.Sword: return 28;
+            case Player.WeaponType.Spear: return 32;
+            case Player.WeaponType.Hammer: return 36;
+
             default: return 30;
         }
     }
+
 
     // -------------------- BUY --------------------
 
@@ -318,12 +358,16 @@ public class ShopPanel : MonoBehaviour
 
     private void ApplyDelta(StatDelta d)
     {
-        // ChangeStrength(int)
-        // ChangeMaxHealth(int)
-        // ChangeMoveSpeed(float)
-        // ChangeAttackSpeedPercent(int)
         switch (d.stat)
         {
+            case StatType.Luck:
+                player.ChangeLuck(d.floatDelta);
+                break;
+
+            case StatType.CriticalChance:
+                player.ChangeCritChance(d.floatDelta);
+                break;
+
             case StatType.Strength:
                 player.ChangeStrength(d.intDelta);
                 break;
@@ -338,6 +382,18 @@ public class ShopPanel : MonoBehaviour
 
             case StatType.AttackSpeedPercent:
                 player.ChangeAttackSpeedPercent(d.intDelta);
+                break;
+
+            case StatType.Armor:
+                player.ChangeArmor(d.intDelta);
+                break;
+
+            case StatType.HpRegen:
+                player.ChangeHpRegen(d.floatDelta);
+                break;
+
+            case StatType.PickupRange:
+                player.ChangePickupRange(d.floatDelta);
                 break;
         }
     }
@@ -365,8 +421,16 @@ public class ShopPanel : MonoBehaviour
     {
         if (offer.type == OfferType.Weapon)
         {
-            if (offer.weaponType == Player.WeaponType.Rifle) return rifleIcon != null ? rifleIcon : defaultIcon;
-            if (offer.weaponType == Player.WeaponType.Shotgun) return shotgunIcon != null ? shotgunIcon : defaultIcon;
+            switch (offer.weaponType)
+            {
+                case Player.WeaponType.Rifle: return rifleIcon != null ? rifleIcon : defaultIcon;
+                case Player.WeaponType.Shotgun: return shotgunIcon != null ? shotgunIcon : defaultIcon;
+
+                case Player.WeaponType.Sniper: return sniperIcon != null ? sniperIcon : defaultIcon;
+                case Player.WeaponType.Sword: return swordIcon != null ? swordIcon : defaultIcon;
+                case Player.WeaponType.Spear: return spearIcon != null ? spearIcon : defaultIcon;
+                case Player.WeaponType.Hammer: return hammerIcon != null ? hammerIcon : defaultIcon;
+            }
             return defaultIcon;
         }
 
@@ -397,4 +461,59 @@ public class ShopPanel : MonoBehaviour
         string desc = string.IsNullOrWhiteSpace(def.desc) ? "" : $" - {def.desc}";
         return $"{def.title}{desc} ({def.cost})";
     }
+
+    private Rarity RollRarityWithLuck()
+    {
+        float L = (player != null) ? player.luck : 0f;
+
+        // Base ağırlıklar (Luck=0)
+        float common = 100f;
+        float uncom = 45f;
+        float rare = 18f;
+        float epic = 5f;
+        float leg = 1f;
+
+        // Luck etkisi: üst rarityleri artır, common’ı azalt
+        // (Değerler safe: legendary yine nadir)
+        float t = L / 100f; // 0..1
+
+        common *= Mathf.Lerp(1.00f, 0.55f, t);
+        uncom *= Mathf.Lerp(1.00f, 1.35f, t);
+        rare *= Mathf.Lerp(1.00f, 1.80f, t);
+        epic *= Mathf.Lerp(1.00f, 2.40f, t);
+        leg *= Mathf.Lerp(1.00f, 3.00f, t);
+
+        float total = common + uncom + rare + epic + leg;
+        float roll = UnityEngine.Random.value * total;
+
+        if ((roll -= common) < 0) return Rarity.Common;
+        if ((roll -= uncom) < 0) return Rarity.Uncommon;
+        if ((roll -= rare) < 0) return Rarity.Rare;
+        if ((roll -= epic) < 0) return Rarity.Epic;
+        return Rarity.Legendary;
+    }
+
+    private int PickStatItemIndexByRarity(Rarity r)
+    {
+        if (statItemPool == null || statItemPool.Length == 0) return -1;
+
+        int total = 0;
+        for (int i = 0; i < statItemPool.Length; i++)
+            if (statItemPool[i] != null && statItemPool[i].rarity == r)
+                total += Mathf.Max(1, statItemPool[i].weight);
+
+        if (total <= 0) return -1; // o rarity'de item yok
+
+        int roll = UnityEngine.Random.Range(0, total);
+        for (int i = 0; i < statItemPool.Length; i++)
+        {
+            var def = statItemPool[i];
+            if (def == null || def.rarity != r) continue;
+
+            roll -= Mathf.Max(1, def.weight);
+            if (roll < 0) return i;
+        }
+        return -1;
+    }
+
 }

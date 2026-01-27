@@ -3,6 +3,7 @@ using UnityEngine;
 public class Bullet : MonoBehaviour
 {
     [SerializeField] GameObject hitFxPrefab;
+    private Player player;
 
     [SerializeField] float speed = 12f;
     [SerializeField] float lifeTime = 2f;
@@ -17,6 +18,7 @@ public class Bullet : MonoBehaviour
 
     void Start()
     {
+        player = FindFirstObjectByType<Player>();
         Destroy(gameObject, lifeTime);
     }
 
@@ -30,9 +32,23 @@ public class Bullet : MonoBehaviour
         if (!other.CompareTag("Enemy")) return;
 
         Enemy enemy = other.GetComponent<Enemy>();
-        if (enemy != null)
-            enemy.TakeDamage(damage);
+        if (enemy == null) return;
 
+        int finalDamage = damage;
+
+        // 🎯 CRITICAL HIT CHECK
+        if (player != null)
+        {
+            float roll = Random.value * 100f;
+            if (roll <= player.critChance)
+            {
+                finalDamage = Mathf.RoundToInt(damage * player.critMultiplier);
+            }
+        }
+
+        enemy.TakeDamage(finalDamage);
+
+        // 💥 HIT VFX (aynı şekilde korunuyor)
         if (hitFxPrefab != null)
         {
             Vector2 offset = Random.insideUnitCircle * 0.08f;
@@ -41,4 +57,5 @@ public class Bullet : MonoBehaviour
 
         Destroy(gameObject);
     }
+
 }
