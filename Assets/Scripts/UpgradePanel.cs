@@ -23,13 +23,34 @@ public class UpgradePanel : MonoBehaviour
         HpRegen,         // value * 0.2f /s
         PickupRange,     // value * 1.0f
         CriticalChance,  // % (int)
-        Luck             // value (int -> float)
+        Luck,             // value (int -> float)
+        Range
     }
 
     private UpgradeChoice[] choices = new UpgradeChoice[3];
     private bool[] rerollUsed = new bool[3];
 
     public GameManager gameManager;
+
+    [Header("Card Background Images (Augment1/2/3 üzerindeki Image)")]
+    [SerializeField] private Image augmentBg1;
+    [SerializeField] private Image augmentBg2;
+    [SerializeField] private Image augmentBg3;
+
+    [Header("Card Flash Overlays")]
+    [SerializeField] private Image flash1;
+    [SerializeField] private Image flash2;
+    [SerializeField] private Image flash3;
+    [SerializeField] private float uiAnimSpeed = 1f;
+
+
+    [Header("Rarity Background Sprites")]
+    [SerializeField] private Sprite commonBg;
+    [SerializeField] private Sprite uncommonBg;
+    [SerializeField] private Sprite rareBg;
+    [SerializeField] private Sprite epicBg;
+    [SerializeField] private Sprite legendaryBg;
+
 
     [Header("Augment Buttons + Texts")]
     [SerializeField] Button firstAugmentButton;
@@ -100,6 +121,20 @@ public class UpgradePanel : MonoBehaviour
         StartCoroutine(PopScale(thirdAugmentButton.transform, 1f, 1.12f, 0.12f));
     }
 
+    private Sprite GetBackgroundForRarity(Rarity r)
+    {
+        return r switch
+        {
+            Rarity.Common => commonBg,
+            Rarity.Uncommon => uncommonBg,
+            Rarity.Rare => rareBg,
+            Rarity.Epic => epicBg,
+            Rarity.Legendary => legendaryBg,
+            _ => commonBg
+        };
+    }
+
+
     private Color GetRarityColor(Rarity r)
     {
         return r switch
@@ -163,7 +198,8 @@ public class UpgradePanel : MonoBehaviour
             UpgradeType.HpRegen,
             UpgradeType.PickupRange,
             UpgradeType.CriticalChance,
-            UpgradeType.Luck
+            UpgradeType.Luck,
+            UpgradeType.Range
         };
 
         UpgradeType type = possibleTypes[Random.Range(0, possibleTypes.Length)];
@@ -201,8 +237,10 @@ public class UpgradePanel : MonoBehaviour
             UpgradeType.HpRegen => 1f,         // 1 => +0.2/s
             UpgradeType.PickupRange => 1f,     // 1 => +1.0
             UpgradeType.CriticalChance => 6f,  // +6%
+            UpgradeType.Range => 10f,          // +10%
             UpgradeType.Luck => 5f,            // +5
             _ => 1f
+
         };
 
         int v = Mathf.Max(1, Mathf.RoundToInt(baseVal * mult));
@@ -215,6 +253,8 @@ public class UpgradePanel : MonoBehaviour
         if (type == UpgradeType.MoveSpeed) v = Mathf.Clamp(v, 3, 25); // 0.03..0.25
         if (type == UpgradeType.HpRegen) v = Mathf.Clamp(v, 1, 6);    // 0.2..1.2/s
         if (type == UpgradeType.PickupRange) v = Mathf.Clamp(v, 1, 6);// 1..6
+        if (type == UpgradeType.Range) v = Mathf.Clamp(v, 5, 50);
+
 
         return v;
     }
@@ -226,6 +266,10 @@ public class UpgradePanel : MonoBehaviour
         SetCardUI(0, firstAugmentText, firstAugmentButton);
         SetCardUI(1, secondAugmentText, secondAugmentButton);
         SetCardUI(2, thirdAugmentText, thirdAugmentButton);
+
+        if (augmentBg1 != null) augmentBg1.sprite = GetBackgroundForRarity(choices[0].rarity);
+        if (augmentBg2 != null) augmentBg2.sprite = GetBackgroundForRarity(choices[1].rarity);
+        if (augmentBg3 != null) augmentBg3.sprite = GetBackgroundForRarity(choices[2].rarity);
     }
 
     private void SetCardUI(int index, TMP_Text text, Button button)
@@ -253,7 +297,7 @@ public class UpgradePanel : MonoBehaviour
         // büyü
         while (t < half)
         {
-            t += Time.deltaTime;
+            t += Time.unscaledDeltaTime; // ✅ timeScale 0 iken de çalışır
             float u = Mathf.Clamp01(t / half);
             float s = Mathf.Lerp(baseScale, peakScale, EaseOut(u));
             target.localScale = Vector3.one * s;
@@ -264,7 +308,7 @@ public class UpgradePanel : MonoBehaviour
         t = 0f;
         while (t < half)
         {
-            t += Time.deltaTime;
+            t += Time.unscaledDeltaTime; // ✅
             float u = Mathf.Clamp01(t / half);
             float s = Mathf.Lerp(peakScale, baseScale, EaseIn(u));
             target.localScale = Vector3.one * s;
@@ -273,6 +317,7 @@ public class UpgradePanel : MonoBehaviour
 
         target.localScale = Vector3.one * baseScale;
     }
+
 
     private float EaseOut(float x) => 1f - Mathf.Pow(1f - x, 3f);
     private float EaseIn(float x) => x * x;
@@ -289,6 +334,9 @@ public class UpgradePanel : MonoBehaviour
 
             case UpgradeType.Luck:
                 return $"{prefix}Luck +{c.value}";
+
+            case UpgradeType.Range:
+                return $"{prefix}Range +{c.value}%";
 
             case UpgradeType.Armor:
                 return $"{prefix}Armor +{c.value}";
@@ -333,6 +381,10 @@ public class UpgradePanel : MonoBehaviour
 
         switch (c.type)
         {
+            case UpgradeType.Range:
+                player.ChangeRange(c.value / 100f); // %10 => 0.10
+                break;
+
             case UpgradeType.CriticalChance:
                 player.ChangeCritChance(c.value);
                 break;
@@ -375,6 +427,8 @@ public class UpgradePanel : MonoBehaviour
     {
         if (rerollUsed[index]) return;
 
+        PlayRerollJuice(index);
+
         RollChoiceUnique(index, true);
         rerollUsed[index] = true;
 
@@ -387,6 +441,122 @@ public class UpgradePanel : MonoBehaviour
         if (index == 1) StartCoroutine(PopScale(secondAugmentButton.transform, 1f, 1.12f, 0.12f));
         if (index == 2) StartCoroutine(PopScale(thirdAugmentButton.transform, 1f, 1.12f, 0.12f));
     }
+
+    private void PlayRerollJuice(int index)
+    {
+        Transform card = null;
+        Image flash = null;
+
+        if (index == 0) { card = firstAugmentButton.transform; flash = flash1; }
+        if (index == 1) { card = secondAugmentButton.transform; flash = flash2; }
+        if (index == 2) { card = thirdAugmentButton.transform; flash = flash3; }
+
+        if (card != null) StartCoroutine(CardRerollAnim(card, flash));
+    }
+
+    private System.Collections.IEnumerator CardRerollAnim(Transform card, Image flash)
+    {
+        float dur = 0.12f / uiAnimSpeed;
+
+        // press: 1.00 -> 0.92 -> 1.03 -> 1.00
+        yield return StartCoroutine(ScaleTo(card, 1.00f, 0.92f, dur * 0.35f));
+        yield return StartCoroutine(ScaleTo(card, 0.92f, 1.03f, dur * 0.35f));
+        yield return StartCoroutine(ScaleTo(card, 1.03f, 1.00f, dur * 0.30f));
+
+        // shake + flash paralel değil, ardışık (istersen paralel de yaparız)
+        yield return StartCoroutine(Shake(card, 7f, 0.08f / uiAnimSpeed));
+        if (flash != null) yield return StartCoroutine(Flash(flash, 0.10f / uiAnimSpeed));
+    }
+
+
+    private System.Collections.IEnumerator ScaleTo(Transform target, float from, float to, float duration)
+    {
+        if (target == null) yield break;
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.unscaledDeltaTime;
+            float u = Mathf.Clamp01(t / duration);
+            float s = Mathf.Lerp(from, to, EaseOut(u));
+            target.localScale = Vector3.one * s;
+            yield return null;
+        }
+        target.localScale = Vector3.one * to;
+    }
+
+
+    private System.Collections.IEnumerator Shake(Transform t, float strength, float duration)
+    {
+        if (t == null) yield break;
+
+        RectTransform rt = t as RectTransform;
+        if (rt == null)
+        {
+            // fallback (3D objeyse)
+            Vector3 start = t.localPosition;
+            float time = 0f;
+            while (time < duration)
+            {
+                time += Time.unscaledDeltaTime;
+                float x = Random.Range(-1f, 1f) * strength;
+                float y = Random.Range(-1f, 1f) * strength;
+                t.localPosition = start + new Vector3(x, y, 0f);
+                yield return null;
+            }
+            t.localPosition = start;
+            yield break;
+        }
+
+        Vector2 startPos = rt.anchoredPosition;
+        float tt = 0f;
+
+        while (tt < duration)
+        {
+            tt += Time.unscaledDeltaTime;
+            float x = Random.Range(-1f, 1f) * strength;
+            float y = Random.Range(-1f, 1f) * strength;
+            rt.anchoredPosition = startPos + new Vector2(x, y);
+            yield return null;
+        }
+
+        rt.anchoredPosition = startPos;
+    }
+
+
+    private System.Collections.IEnumerator Flash(Image img, float duration)
+    {
+        if (img == null) yield break;
+
+        // alpha 0 -> 0.35 -> 0
+        Color c = img.color;
+        c.a = 0f;
+        img.color = c;
+
+        float half = duration * 0.5f;
+        float t = 0f;
+
+        while (t < half)
+        {
+            t += Time.unscaledDeltaTime;
+            c.a = Mathf.Lerp(0f, 0.35f, t / half);
+            img.color = c;
+            yield return null;
+        }
+
+        t = 0f;
+        while (t < half)
+        {
+            t += Time.unscaledDeltaTime;
+            c.a = Mathf.Lerp(0.35f, 0f, t / half);
+            img.color = c;
+            yield return null;
+        }
+
+        c.a = 0f;
+        img.color = c;
+    }
+
 
     // -------------------- RARITY ROLL (LUCK) --------------------
 

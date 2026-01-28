@@ -25,7 +25,8 @@ public class ShopPanel : MonoBehaviour
         HpRegen,        // ✅ (floatDelta)
         PickupRange,     // ✅ (floatDelta)
         CriticalChance,
-        Luck
+        Luck,
+        Range
     }
 
     [Serializable]
@@ -360,6 +361,10 @@ public class ShopPanel : MonoBehaviour
     {
         switch (d.stat)
         {
+            case StatType.Range:
+                player.ChangeRange(d.floatDelta); // d.floatDelta = 0.10f => +%10
+                break;
+
             case StatType.Luck:
                 player.ChangeLuck(d.floatDelta);
                 break;

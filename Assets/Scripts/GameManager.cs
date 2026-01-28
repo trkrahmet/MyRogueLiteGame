@@ -15,6 +15,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] ShopPanel shopPanel;
     [SerializeField] UpgradePanel upgradePanel;
     [SerializeField] private Transform playerSpawnPoint;
+    [SerializeField] private HealthUI healthUI;
+
 
     [Header("UI (TMP)")]
     public TMP_Text waveText;
@@ -27,6 +29,10 @@ public class GameManager : MonoBehaviour
     {
         if (shopPanel == null) shopPanel = FindFirstObjectByType<ShopPanel>();
         if (shopPanel != null) shopPanel.CloseShop();
+        if (healthUI == null) healthUI = FindFirstObjectByType<HealthUI>();
+        if (upgradePanel == null) upgradePanel = FindFirstObjectByType<UpgradePanel>();
+        if (upgradePanel != null) upgradePanel.gameObject.SetActive(false);
+
 
         if (spawner == null) spawner = FindFirstObjectByType<EnemySpawner>();
         if (player == null) player = FindFirstObjectByType<Player>();
@@ -59,16 +65,22 @@ public class GameManager : MonoBehaviour
     private void StartCombat()
     {
         inCombat = true;
+
+        if (player != null) { player.HealToFull(); }
+
+
         waveTimer = waveDuration;
 
         if (spawner != null) { spawner.spawningEnabled = true; }
 
         Time.timeScale = 1f;
+        healthUI?.SetVisible(true);
     }
 
     private void EndCombat()
     {
         inCombat = false;
+
 
         if (spawner != null) { spawner.spawningEnabled = false; }
 
@@ -85,20 +97,25 @@ public class GameManager : MonoBehaviour
         else
         {
             shopPanel.OpenShop();
+            healthUI?.SetVisible(false);
         }
 
+        healthUI?.SetVisible(false);
         Debug.Log($"Wave {currentWaveLevel} ended. Prepare for upgrades!");
     }
 
     private void ShowNextUpgradePick()
     {
         upgradePanel.Open();
+        healthUI?.SetVisible(false);
     }
 
     public void OnUpgradeChosen()
     {
-        remainingUpgradePicks--;
-        player.pendingUpgradePoints--;
+        remainingUpgradePicks = Mathf.Max(0, remainingUpgradePicks - 1);
+
+        if (player != null)
+            player.pendingUpgradePoints = Mathf.Max(0, player.pendingUpgradePoints - 1);
 
         if (remainingUpgradePicks > 0)
         {
@@ -106,29 +123,61 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            shopPanel.OpenShop();
+            shopPanel?.OpenShop();
+            healthUI?.SetVisible(false);
         }
     }
+
 
     private void UpdateUI()
     {
         if (waveText != null) { waveText.text = $"Wave: {currentWaveLevel}"; }
         if (timerText != null) timerText.text = $"Time: {Mathf.CeilToInt(waveTimer)}";
-        if (levelText != null && spawner != null) { levelText.text = $"Level: {player.playerLevel}"; }
+        if (levelText != null && player != null) { levelText.text = $"Level: {player.playerLevel}"; }
     }
 
     public void ContinueForNextLevel()
     {
-        // UI panellerinden çıkış yaptığın an burası çağrılıyor
+        // ✅ HER ŞEYDEN ÖNCE: oyunu çöz (timeScale 0 kalmasın)
+        Time.timeScale = 1f;
+        inCombat = true;
+
+        // ✅ Ref’leri garantiye al (sahnede değişmiş olabilir)
+        if (spawner == null) spawner = FindFirstObjectByType<EnemySpawner>();
+        if (player == null) player = FindFirstObjectByType<Player>();
+        if (shopPanel == null) shopPanel = FindFirstObjectByType<ShopPanel>();
+        if (upgradePanel == null) upgradePanel = FindFirstObjectByType<UpgradePanel>();
+
+        // ✅ Panelleri kapat (bazı durumlarda açık kalabiliyor)
+        shopPanel?.CloseShop();
+        if (upgradePanel != null) upgradePanel.gameObject.SetActive(false);
+
         ClearAllXpOrbs();
         ResetPlayerToCenter();
 
         currentWaveLevel++;
-        spawner.ApplyWaveSettings(currentWaveLevel);
 
-        StartCombat();     // waveTimer reset + inCombat true + timeScale 1
+        // ✅ spawner ayarları hata verirse bile combat başlasın
+        if (spawner != null)
+        {
+            try
+            {
+                spawner.ApplyWaveSettings(currentWaveLevel);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"ApplyWaveSettings error: {e}");
+            }
+        }
+        else
+        {
+            Debug.LogError("Spawner is NULL in ContinueForNextLevel!");
+        }
+
+        StartCombat();
         UpdateUI();
     }
+
 
 
     private void ClearAllXpOrbs()

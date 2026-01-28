@@ -48,6 +48,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hitFxPrefab: {fileID: 7187786948965814769, guid: c95bc407e45a70042b156b7ec379fbc4, type: 3}
+  critHitFxPrefab: {fileID: 4892160960765892299, guid: 5058a09475954fc4a92571f752c7b1d2, type: 3}
+  critFxScale: 1.25
   speed: 30
   lifeTime: 2
   damage: 1

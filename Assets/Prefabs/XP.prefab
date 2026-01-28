@@ -47,7 +47,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   attractRadius: 5
-  moveSpeed: 10
+  moveSpeed: 20
   stopDistance: 0.2
 --- !u!212 &18890168610662585
 SpriteRenderer:

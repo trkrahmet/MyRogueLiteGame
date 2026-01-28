@@ -21,7 +21,7 @@ public class Player : MonoBehaviour
         public float meleeRange;     // merkezin player’dan uzaklığı
         public float meleeRadius;    // vurma yarıçapı
         public int maxTargets;       // kaç hedef vurabilsin (0 = sınırsız)
-
+        public float baseRange = 6f;
     }
 
     public enum WeaponType
@@ -72,6 +72,9 @@ public class Player : MonoBehaviour
     public Transform firePoint;
     public int maxWeaponSlots = 6;
 
+    [Range(0f, 3f)]
+    public float rangeBonus = 0f; // % olarak, 0.25 = +25%
+
     [Header("Knockback")]
     public float knockbackStrength = 6f;
     public float knockbackDuration = 0.12f;
@@ -96,12 +99,23 @@ public class Player : MonoBehaviour
     [Range(0f, 100f)]
     public float luck = 0f;
 
+    [Header("Hit Flash")]
+    [SerializeField] private SpriteRenderer spriteRenderer;
+    [SerializeField] private Color hitColor = Color.red;
+    [SerializeField] private float hitFlashDuration = 0.08f;
+
+
     void Awake()
     {
         anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
+
+        if (spriteRenderer == null)
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+
         currentHp = maxHp;
         NotifyHealthUI();
+
 
         for (int i = 0; i < weaponSlots.Count; i++)
         {
@@ -218,15 +232,18 @@ public class Player : MonoBehaviour
         weaponSlots[0].isActive = true;
     }
 
-
-    Transform FindNearestEnemy()
+    bool TryGetDirectionToNearest(out Vector2 dir)
     {
+        dir = Vector2.zero;
+
+        if (firePoint == null) return false;
+
         GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
-        if (enemies.Length == 0) return null;
+        if (enemies.Length == 0) return false;
 
         Transform nearest = null;
         float bestDist = float.MaxValue;
-        Vector2 myPos = transform.position;
+        Vector2 myPos = firePoint.position;
 
         foreach (var e in enemies)
         {
@@ -238,23 +255,48 @@ public class Player : MonoBehaviour
             }
         }
 
-        return nearest;
-    }
+        if (nearest == null) return false;
 
-    bool TryGetDirectionToNearest(out Vector2 dir)
-    {
-        dir = Vector2.zero;
-
-        if (firePoint == null) return false;
-
-        Transform target = FindNearestEnemy();
-        if (target == null) return false;
-
-        dir = ((Vector2)target.position - (Vector2)firePoint.position).normalized;
+        dir = ((Vector2)nearest.position - myPos).normalized;
         return true;
     }
 
-    void SpawnBullet(Vector2 dir, int damage)
+
+    bool TryGetDirectionToNearestInRange(float maxRange, out Vector2 dir)
+    {
+        dir = Vector2.zero;
+        if (firePoint == null) return false;
+
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        if (enemies.Length == 0) return false;
+
+        Transform nearest = null;
+        float bestSqrDist = float.MaxValue;
+        Vector2 myPos = firePoint.position;
+
+        for (int i = 0; i < enemies.Length; i++)
+        {
+            Vector2 ePos = enemies[i].transform.position;
+            float d = (ePos - myPos).sqrMagnitude;
+            if (d < bestSqrDist)
+            {
+                bestSqrDist = d;
+                nearest = enemies[i].transform;
+            }
+        }
+
+        if (nearest == null) return false;
+
+        // ✅ menzil kontrolü
+        float maxSqr = maxRange * maxRange;
+        if (bestSqrDist > maxSqr) return false;
+
+        dir = ((Vector2)nearest.position - myPos).normalized;
+        return true;
+    }
+
+
+    void SpawnBullet(Vector2 dir, int damage, float weaponBaseRange)
     {
         if (bulletPrefab == null || firePoint == null) return;
 
@@ -264,8 +306,16 @@ public class Player : MonoBehaviour
         if (bullet == null) return;
 
         bullet.damage = damage + strength;
+
+        // ✅ menzil = silah baseRange * (1 + player rangeBonus)
+        float finalRange = weaponBaseRange * (1f + rangeBonus);
+
+        // Bullet.cs’te ekleyeceğimiz fonksiyon
+        bullet.SetMaxRange(finalRange);
+
         bullet.SetDirection(dir);
     }
+
 
     void OnTriggerEnter2D(Collider2D other)
     {
@@ -312,6 +362,7 @@ public class Player : MonoBehaviour
     {
         int finalDamage = Mathf.Max(1, amount - armor); // ✅ armor
         currentHp -= finalDamage;
+        PlayHitFlash();
 
         if (currentHp <= 0)
         {
@@ -427,27 +478,35 @@ public class Player : MonoBehaviour
 
     void FireSniper(WeaponSlot slot)
     {
-        if (!TryGetDirectionToNearest(out Vector2 dir)) return;
-        SpawnBullet(dir, slot.damage);
+        float finalRange = slot.baseRange * (1f + rangeBonus);
+        if (!TryGetDirectionToNearestInRange(finalRange, out Vector2 dir)) return;
+
+        SpawnBullet(dir, slot.damage, slot.baseRange);
     }
+
+
 
 
     void FireRifle(WeaponSlot slot)
     {
-        if (!TryGetDirectionToNearest(out Vector2 dir)) return;
-        SpawnBullet(dir, slot.damage);
+        float finalRange = slot.baseRange * (1f + rangeBonus);
+        if (!TryGetDirectionToNearestInRange(finalRange, out Vector2 dir)) return;
+
+        SpawnBullet(dir, slot.damage, slot.baseRange);
     }
+
+
 
     void FireShotgun(WeaponSlot slot)
     {
-        if (!TryGetDirectionToNearest(out Vector2 dir)) return;
+        float finalRange = slot.baseRange * (1f + rangeBonus);
+        if (!TryGetDirectionToNearestInRange(finalRange, out Vector2 dir)) return;
 
         int pellets = Mathf.Max(1, slot.pelletCount);
 
-        // pelletCount 1 ise tek mermi gibi çalışsın
         if (pellets == 1)
         {
-            SpawnBullet(dir, slot.damage);
+            SpawnBullet(dir, slot.damage, slot.baseRange);
             return;
         }
 
@@ -458,10 +517,11 @@ public class Player : MonoBehaviour
         {
             float angle = startAngle + step * i;
             Vector2 rotatedDir = (Vector2)(Quaternion.Euler(0f, 0f, angle) * (Vector3)dir);
-
-            SpawnBullet(rotatedDir, slot.damage);
+            SpawnBullet(rotatedDir, slot.damage, slot.baseRange);
         }
     }
+
+
 
     public void ChangeStrength(int delta) => strength += delta;
 
@@ -515,6 +575,12 @@ public class Player : MonoBehaviour
         luck = Mathf.Clamp(luck + delta, 0f, 100f);
     }
 
+    public void ChangeRange(float delta)
+    {
+        rangeBonus = Mathf.Clamp(rangeBonus + delta, 0f, 3f);
+    }
+
+
     public bool TryAddWeapon(WeaponType type)
     {
         // weaponSlots listesini maxWeaponSlots kadar baştan doldurmuş olmak en sağlıklısı.
@@ -546,6 +612,7 @@ public class Player : MonoBehaviour
             slot.damage = 1;
             slot.pelletCount = 1;
             slot.spreadAngle = 0f;
+            slot.baseRange = 7.0f;
         }
         else if (type == WeaponType.Shotgun)
         {
@@ -553,6 +620,7 @@ public class Player : MonoBehaviour
             slot.damage = 1;
             slot.pelletCount = 5;
             slot.spreadAngle = 35f;
+            slot.baseRange = 5.0f;
         }
         else if (type == WeaponType.Sniper)
         {
@@ -560,6 +628,7 @@ public class Player : MonoBehaviour
             slot.damage = 4;        // yüksek
             slot.pelletCount = 1;
             slot.spreadAngle = 0f;
+            slot.baseRange = 11.0f;
         }
         else if (type == WeaponType.Sword)
         {
@@ -592,6 +661,35 @@ public class Player : MonoBehaviour
     private void NotifyHealthUI()
     {
         OnHealthChanged?.Invoke(currentHp, maxHp);
+    }
+
+    public void HealToFull()
+    {
+        currentHp = maxHp;
+        OnHealthChanged?.Invoke(currentHp, maxHp);
+    }
+
+    private Coroutine hitFlashRoutine;
+
+    private void PlayHitFlash()
+    {
+        if (spriteRenderer == null) return;
+
+        if (hitFlashRoutine != null)
+            StopCoroutine(hitFlashRoutine);
+
+        hitFlashRoutine = StartCoroutine(HitFlashCoroutine());
+    }
+
+    private System.Collections.IEnumerator HitFlashCoroutine()
+    {
+        Color original = spriteRenderer.color;
+
+        spriteRenderer.color = hitColor;
+        yield return new WaitForSeconds(hitFlashDuration);
+
+        spriteRenderer.color = original;
+        hitFlashRoutine = null;
     }
 
 }

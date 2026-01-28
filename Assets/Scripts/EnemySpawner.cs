@@ -238,7 +238,6 @@ public class EnemySpawner : MonoBehaviour
     bool IsBossWave(int waveLevel)
     {
         return waveLevel == 10;
-        // istersen sadece 10. wave: return waveLevel == 10;
     }
 
     void SpawnEnemy(Vector3 position)

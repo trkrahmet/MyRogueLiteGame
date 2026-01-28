@@ -7,10 +7,12 @@ public class HealthUI : MonoBehaviour
     [SerializeField] private Player player;
     [SerializeField] private TMP_Text hpText;
     [SerializeField] private Slider hpSlider; // opsiyonel
+    [SerializeField] private CanvasGroup group;
 
     private void Awake()
     {
         if (player == null) player = FindFirstObjectByType<Player>();
+        if (group == null) group = GetComponent<CanvasGroup>();
     }
 
     private void OnEnable()
@@ -27,6 +29,19 @@ public class HealthUI : MonoBehaviour
     {
         if (player != null)
             player.OnHealthChanged -= HandleHealthChanged;
+    }
+
+    public void SetVisible(bool visible)
+    {
+        if (group == null)
+        {
+            gameObject.SetActive(visible);
+            return;
+        }
+
+        group.alpha = visible ? 1f : 0f;
+        group.interactable = visible;
+        group.blocksRaycasts = visible;
     }
 
     private void HandleHealthChanged(int current, int max)
