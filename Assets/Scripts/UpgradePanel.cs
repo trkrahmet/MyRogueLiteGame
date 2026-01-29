@@ -563,7 +563,7 @@ public class UpgradePanel : MonoBehaviour
     private Rarity RollRarityWithLuck()
     {
         float L = (player != null) ? player.luck : 0f;
-        float t = L / 100f; // 0..1
+        float t = Mathf.Clamp01(L / 100f);
 
         float common = 100f;
         float uncom = 45f;

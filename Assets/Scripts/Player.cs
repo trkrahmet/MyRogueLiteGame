@@ -70,7 +70,7 @@ public class Player : MonoBehaviour
     [Header("Combat")]
     public GameObject bulletPrefab;
     public Transform firePoint;
-    public int maxWeaponSlots = 6;
+    public int maxWeaponSlots = 4;
 
     [Range(0f, 3f)]
     public float rangeBonus = 0f; // % olarak, 0.25 = +25%
@@ -409,11 +409,12 @@ public class Player : MonoBehaviour
 
         dir = dir.normalized;
 
-        // hit alanı merkezi
-        Vector2 center = (Vector2)transform.position + dir * slot.meleeRange;
+        float rMult = (1f + rangeBonus);
+        float meleeRange = slot.meleeRange * rMult;
+        float meleeRadius = slot.meleeRadius * rMult;
 
-        // ✅ 1) Hasar (mevcut yöntem)
-        Collider2D[] hits = Physics2D.OverlapCircleAll(center, slot.meleeRadius);
+        Vector2 center = (Vector2)transform.position + dir * meleeRange;
+        Collider2D[] hits = Physics2D.OverlapCircleAll(center, meleeRadius);
 
         int dealt = 0;
         int limit = slot.maxTargets; // 0 => sınırsız

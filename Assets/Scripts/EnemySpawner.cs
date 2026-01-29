@@ -265,6 +265,18 @@ public class EnemySpawner : MonoBehaviour
 
         var enemy = Instantiate(prefab, position, Quaternion.identity);
         aliveEnemies.Add(enemy);
+
+        var e = enemy.GetComponent<Enemy>();
+        if (e != null)
+        {
+            // örnek scaler (şimdilik burada)
+            float w = currentWaveLevel;
+            float hpMult = 1f + (w - 1f) * 0.18f;      // 20 wave'de ~ +342%
+            float dmgMult = 1f + (w - 1f) * 0.10f;     // 20 wave'de ~ +190%
+            float spdMult = 1f + (w - 1f) * 0.02f;     // 20 wave'de ~ +38%
+
+            e.InitForWave(currentWaveLevel, hpMult, dmgMult, spdMult);
+        }
     }
 
 

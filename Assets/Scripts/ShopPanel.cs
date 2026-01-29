@@ -65,7 +65,10 @@ public class ShopPanel : MonoBehaviour
         // Weapon
         public Player.WeaponType weaponType;
         public int cost;
+
+        public Rarity rarity; // ✅ EKLE
     }
+
 
     // -------------------- REFS --------------------
 
@@ -107,6 +110,19 @@ public class ShopPanel : MonoBehaviour
     [Header("Refresh")]
     [SerializeField] private int refreshCost = 5;
     [SerializeField] private TMP_Text refreshCostText;
+
+    [Header("Card Backgrounds (Rarity)")]
+    [SerializeField] private Image cardBg0;
+    [SerializeField] private Image cardBg1;
+    [SerializeField] private Image cardBg2;
+    [SerializeField] private Image cardBg3;
+
+    [Header("Rarity Colors")]
+    [SerializeField] private Color commonColor = Color.white;
+    [SerializeField] private Color uncommonColor = new Color(0.45f, 1f, 0.55f);
+    [SerializeField] private Color rareColor = new Color(0.45f, 0.7f, 1f);
+    [SerializeField] private Color epicColor = new Color(0.85f, 0.45f, 1f);
+    [SerializeField] private Color legendaryColor = new Color(1f, 0.75f, 0.25f);
 
 
     private Offer[] offers = new Offer[4];
@@ -150,6 +166,19 @@ public class ShopPanel : MonoBehaviour
         CloseShop();
         if (gameManager != null)
             gameManager.ContinueForNextLevel();
+    }
+
+    private Color GetRarityColor(Rarity r)
+    {
+        return r switch
+        {
+            Rarity.Common => commonColor,
+            Rarity.Uncommon => uncommonColor,
+            Rarity.Rare => rareColor,
+            Rarity.Epic => epicColor,
+            Rarity.Legendary => legendaryColor,
+            _ => commonColor
+        };
     }
 
     // Refresh butonu buraya bağlanabilir
@@ -199,22 +228,22 @@ public class ShopPanel : MonoBehaviour
         if (statItemPool == null || statItemPool.Length == 0)
         {
             o.statItemIndex = -1;
+            o.rarity = Rarity.Common; // ✅
             return o;
         }
 
-        // Luck’a göre rarity seç
         Rarity r = RollRarityWithLuck();
-
-        // O rarity’den item seç; yoksa bir alt rarity’ye düş
         int idx = PickStatItemIndexByRarity(r);
         if (idx < 0 && r != Rarity.Common)
-            idx = PickStatItemIndexByRarity(r - 1); // Uncommon->Common gibi
+            idx = PickStatItemIndexByRarity(r - 1);
 
         if (idx < 0) idx = UnityEngine.Random.Range(0, statItemPool.Length);
 
         o.statItemIndex = idx;
+        o.rarity = statItemPool[idx].rarity; // ✅ (en doğru)
         return o;
     }
+
 
 
     private Offer RollWeaponOffer()
@@ -225,8 +254,14 @@ public class ShopPanel : MonoBehaviour
         o.weaponType = RollWeaponType();
         o.cost = WeaponCost(o.weaponType);
 
+        // ✅ basit rarity mapping (istersen sonra ayarlarız)
+        o.rarity = o.cost >= 38 ? Rarity.Rare :
+                   o.cost >= 32 ? Rarity.Uncommon :
+                                  Rarity.Common;
+
         return o;
     }
+
 
     private Player.WeaponType RollWeaponType()
     {
@@ -420,6 +455,13 @@ public class ShopPanel : MonoBehaviour
         if (itemImage1 != null) itemImage1.sprite = OfferToIcon(offers[1]);
         if (itemImage2 != null) itemImage2.sprite = OfferToIcon(offers[2]);
         if (itemImage3 != null) itemImage3.sprite = OfferToIcon(offers[3]);
+
+        // ✅ rarity background
+        if (cardBg0 != null) cardBg0.color = GetRarityColor(offers[0].rarity);
+        if (cardBg1 != null) cardBg1.color = GetRarityColor(offers[1].rarity);
+        if (cardBg2 != null) cardBg2.color = GetRarityColor(offers[2].rarity);
+        if (cardBg3 != null) cardBg3.color = GetRarityColor(offers[3].rarity);
+
     }
 
     private Sprite OfferToIcon(Offer offer)
@@ -451,7 +493,7 @@ public class ShopPanel : MonoBehaviour
     {
         if (offer.type == OfferType.Weapon)
         {
-            return $"Weapon: {offer.weaponType} ({offer.cost})";
+            return $"[{offer.rarity}] Weapon: {offer.weaponType} ({offer.cost})";
         }
 
         // Stat item
@@ -464,7 +506,8 @@ public class ShopPanel : MonoBehaviour
         var def = statItemPool[offer.statItemIndex];
         // 1 satır: isim + kısa desc + fiyat
         string desc = string.IsNullOrWhiteSpace(def.desc) ? "" : $" - {def.desc}";
-        return $"{def.title}{desc} ({def.cost})";
+        return $"[{def.rarity}] {def.title}{desc} ({def.cost})";
+
     }
 
     private Rarity RollRarityWithLuck()

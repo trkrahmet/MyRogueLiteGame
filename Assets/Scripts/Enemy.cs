@@ -104,6 +104,16 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    public void InitForWave(int wave, float hpMult, float dmgMult, float speedMult)
+    {
+        int scaledMax = Mathf.Max(1, Mathf.RoundToInt(maxHp * hpMult));
+        hp = scaledMax;
+
+        contactDamage = Mathf.Max(1, Mathf.RoundToInt(contactDamage * dmgMult));
+        moveSpeed *= speedMult;
+    }
+
+
     void Die()
     {
         if (isDying) return;
