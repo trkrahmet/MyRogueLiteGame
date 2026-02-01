@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 23931276594534575}
   - component: {fileID: 7598250568420820120}
   m_Layer: 7
-  m_Name: EnemyBoss
+  m_Name: TheGreatOrc
   m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

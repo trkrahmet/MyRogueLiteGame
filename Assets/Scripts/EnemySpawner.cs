@@ -5,6 +5,8 @@ using Random = UnityEngine.Random;
 
 public class EnemySpawner : MonoBehaviour
 {
+    public System.Action<Enemy> OnFinalEnemySpawned;
+
     GameManager gameManager;
     private List<GameObject> aliveEnemies = new List<GameObject>();
 
@@ -25,12 +27,17 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] GameObject enemyElitePrefab;
     [SerializeField] GameObject enemyBossPrefab;
 
+    [Header("Boss Pool (Rotation)")]
+    [SerializeField] private GameObject[] bossPrefabs; // 10 boss
+
+
     [Header("Spawn")]
     [SerializeField] float spawnInterval = 1f;
     [SerializeField] int maxAliveEnemies = 50;
     private int currentWaveLevel = 1;
     private bool bossSpawned = false;
-
+    private int spawnedThisWave = 0;
+    private int spawnLimit = 0;
 
     float spawnTimer;
     public bool spawningEnabled = true;
@@ -50,6 +57,10 @@ public class EnemySpawner : MonoBehaviour
     void Update()
     {
         if (!spawningEnabled) return;
+
+        if (gameManager != null && gameManager.IsKillTargetReached())
+            return;
+
 
         if (enemyPrefab == null) return;
 
@@ -72,12 +83,97 @@ public class EnemySpawner : MonoBehaviour
             }
         }
 
+        if (spawnedThisWave >= spawnLimit)
+            return;
 
         if (spawnTimer >= spawnInterval)
         {
             spawnTimer = 0f;
             TrySpawnFromMapArea();
 
+        }
+    }
+
+
+    public void SpawnFinalEnemyForWave(int waveLevel)
+    {
+        currentWaveLevel = waveLevel;
+
+        GameObject prefab = PickBossPrefab(waveLevel);
+        if (prefab == null)
+        {
+            Debug.LogWarning("No boss prefab in pool!");
+            return;
+        }
+
+        if (!TryGetRandomPointInArea(out Vector3 pos))
+        {
+            Debug.LogWarning("SpawnFinalEnemyForWave: no spawn point!");
+            return;
+        }
+
+        StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos, waveLevel));
+    }
+
+    private GameObject PickBossPrefab(int waveLevel)
+    {
+        if (bossPrefabs == null || bossPrefabs.Length == 0) return enemyElitePrefab; // fallback
+
+        int idx = (waveLevel - 1) % bossPrefabs.Length;
+        return bossPrefabs[idx] != null ? bossPrefabs[idx] : enemyElitePrefab;
+    }
+
+    private IEnumerator SpawnSpecificWithTelegraph(GameObject prefab, Vector3 pos, int waveLevel)
+    {
+        GameObject warning = null;
+        if (spawnWarningPrefab != null)
+            warning = Instantiate(spawnWarningPrefab, pos, Quaternion.identity);
+
+        float t = 0f;
+        while (t < telegraphDelay)
+        {
+            t += Time.deltaTime;
+
+            if (playerTransform != null && Vector2.Distance(playerTransform.position, pos) < cancelDistance)
+            {
+                if (TryGetRandomPointInArea(out Vector3 newPos))
+                    pos = newPos;
+            }
+
+            yield return null;
+        }
+
+        if (warning != null) Destroy(warning);
+
+        var go = Instantiate(prefab, pos, Quaternion.identity);
+
+        // ✅ boss scaling burada
+        var e = go.GetComponent<Enemy>();
+        if (e != null)
+        {
+            OnFinalEnemySpawned?.Invoke(e);
+            int cycle = (bossPrefabs != null && bossPrefabs.Length > 0)
+                ? (waveLevel - 1) / bossPrefabs.Length
+                : 0;
+
+            float w = waveLevel;
+
+            float baseHp = 1f + (w - 1f) * 0.18f;
+            float baseDmg = 1f + (w - 1f) * 0.10f;
+            float baseSpd = 1f + (w - 1f) * 0.02f;
+
+            float cycleHp = 1f + cycle * 0.35f;
+            float cycleDmg = 1f + cycle * 0.20f;
+            float cycleSpd = 1f + cycle * 0.05f;
+
+            e.InitForWave(waveLevel, baseHp * cycleHp, baseDmg * cycleDmg, baseSpd * cycleSpd);
+
+            if (e != null)
+                OnFinalEnemySpawned?.Invoke(e); // ✅ Boss UI buradan tetiklenecek
+
+
+            // İstersen Enemy scriptine bool ekleyip elite-kill’i ayırırsın:
+            // e.isFinalEnemy = true;
         }
     }
 
@@ -108,6 +204,62 @@ public class EnemySpawner : MonoBehaviour
         Instantiate(enemyBossPrefab, pos, Quaternion.identity);
     }
 
+    public void SpawnEliteEnemy()
+    {
+        // Burada karar: elite mi boss mu?
+        // Öneri: wave 10'da boss, diğerlerinde elite
+        GameObject prefab = (currentWaveLevel >= 10 && enemyBossPrefab != null)
+            ? enemyBossPrefab
+            : enemyElitePrefab;
+
+        if (prefab == null)
+        {
+            Debug.LogWarning("SpawnEliteEnemy: elite/boss prefab missing!");
+            return;
+        }
+
+        if (!TryGetRandomPointInArea(out Vector3 pos))
+        {
+            Debug.LogWarning("SpawnEliteEnemy: could not find spawn point in area!");
+            return;
+        }
+
+        // warning ile spawnla (iptal etme yok, sadece oyuncu üstündeyse başka yere kaydır)
+        StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos));
+    }
+
+    private IEnumerator SpawnSpecificWithTelegraph(GameObject prefab, Vector3 pos)
+    {
+        GameObject warning = null;
+        if (spawnWarningPrefab != null)
+            warning = Instantiate(spawnWarningPrefab, pos, Quaternion.identity);
+
+        float t = 0f;
+        while (t < telegraphDelay)
+        {
+            t += Time.deltaTime;
+
+            // Elite/boss için: iptal etmeyelim, ama oyuncu üstüne geldiyse başka yere kaydır
+            if (playerTransform != null && Vector2.Distance(playerTransform.position, pos) < cancelDistance)
+            {
+                if (TryGetRandomPointInArea(out Vector3 newPos))
+                    pos = newPos;
+            }
+
+            yield return null;
+        }
+
+        if (warning != null) Destroy(warning);
+
+        // son güvenlik
+        if (playerTransform != null && Vector2.Distance(playerTransform.position, pos) < cancelDistance)
+        {
+            if (TryGetRandomPointInArea(out Vector3 newPos))
+                pos = newPos;
+        }
+
+        Instantiate(prefab, pos, Quaternion.identity);
+    }
 
     void TrySpawnFromMapArea()
     {
@@ -146,6 +298,12 @@ public class EnemySpawner : MonoBehaviour
             yield break;
 
         SpawnEnemy(pos);
+    }
+
+    public void SetSpawnLimit(int limit)
+    {
+        spawnLimit = limit;
+        spawnedThisWave = 0;
     }
 
 
@@ -242,6 +400,9 @@ public class EnemySpawner : MonoBehaviour
 
     void SpawnEnemy(Vector3 position)
     {
+        if (spawnedThisWave >= spawnLimit)
+            return;
+
         // Wave 5+ : elite havuza girer
         float eliteChance = GetEliteSpawnChance(currentWaveLevel);
 
@@ -264,6 +425,7 @@ public class EnemySpawner : MonoBehaviour
         if (prefab == null) return;
 
         var enemy = Instantiate(prefab, position, Quaternion.identity);
+        spawnedThisWave++;
         aliveEnemies.Add(enemy);
 
         var e = enemy.GetComponent<Enemy>();
@@ -302,4 +464,10 @@ public class EnemySpawner : MonoBehaviour
         }
         aliveEnemies.Clear();
     }
+
+    public bool AreAllEnemiesSpawned()
+    {
+        return spawnedThisWave >= spawnLimit;
+    }
+
 }

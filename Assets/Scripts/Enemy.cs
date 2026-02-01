@@ -6,6 +6,7 @@ public class Enemy : MonoBehaviour
     [SerializeField] GameObject xpOrbPrefab;
     [SerializeField] float moveSpeed = 2f;
     [SerializeField] int maxHp = 3;
+    int hp;
     public int contactDamage = 1;
     [SerializeField] float hitFlashDuration = 0.06f;
     Color originalColor;
@@ -19,19 +20,27 @@ public class Enemy : MonoBehaviour
     [SerializeField] float deathPopDuration = 0.12f;
     [SerializeField] float deathPopScale = 1.15f;
 
-    bool isDying = false;
+    private bool isDead = false;
     float deathPopTimer;
     Vector3 baseScale;
 
-
-    int hp;
     Transform playerTransform;
     Rigidbody2D rb;
     SpriteRenderer sr;
 
+    public int CurrentHp => hp;
+    public int CurrentMaxHp => _scaledMaxHp;
+
+    private int _scaledMaxHp;
+    public event System.Action<int, int> OnHealthChanged;
+
+
     void Start()
     {
         hp = maxHp;
+        _scaledMaxHp = maxHp;
+        OnHealthChanged?.Invoke(hp, _scaledMaxHp);
+
         rb = GetComponent<Rigidbody2D>();
         sr = GetComponent<SpriteRenderer>();
 
@@ -50,7 +59,7 @@ public class Enemy : MonoBehaviour
                 sr.color = originalColor;
         }
 
-        if (isDying)
+        if (isDead)
         {
             deathPopTimer -= Time.deltaTime;
             float t = 1f - (deathPopTimer / deathPopDuration); // 0->1
@@ -93,12 +102,15 @@ public class Enemy : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
+        if (isDead) return;
         hp -= amount;
+        OnHealthChanged?.Invoke(hp, _scaledMaxHp);
         sr.color = new Color(1f, 0.5f, 0.5f); // hafif kırmızı
         hitFlashTimer = hitFlashDuration;
 
         if (hp <= 0)
         {
+            isDead = true;
             Instantiate(xpOrbPrefab, transform.position, Quaternion.identity);
             Die();
         }
@@ -107,7 +119,10 @@ public class Enemy : MonoBehaviour
     public void InitForWave(int wave, float hpMult, float dmgMult, float speedMult)
     {
         int scaledMax = Mathf.Max(1, Mathf.RoundToInt(maxHp * hpMult));
+        _scaledMaxHp = scaledMax;
         hp = scaledMax;
+        OnHealthChanged?.Invoke(hp, _scaledMaxHp);
+
 
         contactDamage = Mathf.Max(1, Mathf.RoundToInt(contactDamage * dmgMult));
         moveSpeed *= speedMult;
@@ -116,16 +131,23 @@ public class Enemy : MonoBehaviour
 
     void Die()
     {
-        if (isDying) return;
-        isDying = true;
+        isDead = true;
         deathPopTimer = deathPopDuration;
 
-        // hareketi durdur
-        if (rb != null) rb.simulated = false;
+        FindFirstObjectByType<GameManager>()?.RegisterEnemyKill();
+        var gm = FindFirstObjectByType<GameManager>();
+        if (gm != null)
+        {
+            // Elite fazındayken ölen “final düşman” elite’dir
+            // (sahada tek düşman var dediğin için bu yaklaşım yeterli)
+            gm.RegisterEliteKilled();
 
-        // collider varsa kapat (2D)
-        var col = GetComponent<Collider2D>();
-        if (col != null) col.enabled = false;
+            // hareketi durdur
+            if (rb != null) rb.simulated = false;
+
+            // collider varsa kapat (2D)
+            var col = GetComponent<Collider2D>();
+            if (col != null) col.enabled = false;
+        }
     }
-
 }

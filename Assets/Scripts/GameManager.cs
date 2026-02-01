@@ -3,187 +3,355 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
+    private enum WaveState
+    {
+        Combat,
+        Elite,
+        Upgrade,
+        Shop
+        // Boss state’i Adım 3’te buraya ekleyeceğiz
+    }
+
     [Header("Wave Settings")]
     public float waveDuration = 60f;
     public int currentWaveLevel = 1;
-    public float waveTimer;
-    bool inCombat = true;
+
+    [Header("Kill-Based Wave")]
+    public int baseKillCount = 8;          // Wave 1
+    public int killIncreasePerWave = 4;    // Her wave artışı
+
+    private int currentKills = 0;
+    private int targetKills = 0;
+
+    [Header("Elite Phase")]
+    public float eliteTimeLimit = 20f;
+    private float eliteTimer = 0f;
+    private bool eliteAlive = false;
+
+    public System.Action OnEliteStarted;
+    public System.Action OnEliteEnded; // success/fail (ikisini de kapatır)
+
+    private Enemy currentEliteEnemy;
+
+
+    private float waveTimer;
 
     [Header("References")]
     public EnemySpawner spawner;
     public Player player;
-    [SerializeField] ShopPanel shopPanel;
-    [SerializeField] UpgradePanel upgradePanel;
+    [SerializeField] private ShopPanel shopPanel;
+    [SerializeField] private UpgradePanel upgradePanel;
     [SerializeField] private Transform playerSpawnPoint;
     [SerializeField] private HealthUI healthUI;
-
 
     [Header("UI (TMP)")]
     public TMP_Text waveText;
     public TMP_Text timerText;
     public TMP_Text levelText;
 
-    public int remainingUpgradePicks = 0;
+    private WaveState state = WaveState.Combat;
+
+    // Wave sonunda kaç upgrade hakkı kaldı?
+    private int remainingUpgradePicks = 0;
 
     private void Start()
     {
-        if (shopPanel == null) shopPanel = FindFirstObjectByType<ShopPanel>();
-        if (shopPanel != null) shopPanel.CloseShop();
-        if (healthUI == null) healthUI = FindFirstObjectByType<HealthUI>();
-        if (upgradePanel == null) upgradePanel = FindFirstObjectByType<UpgradePanel>();
-        if (upgradePanel != null) upgradePanel.gameObject.SetActive(false);
-
-
+        // Refs
         if (spawner == null) spawner = FindFirstObjectByType<EnemySpawner>();
         if (player == null) player = FindFirstObjectByType<Player>();
+        if (shopPanel == null) shopPanel = FindFirstObjectByType<ShopPanel>();
+        if (upgradePanel == null) upgradePanel = FindFirstObjectByType<UpgradePanel>();
+        if (healthUI == null) healthUI = FindFirstObjectByType<HealthUI>();
 
-        waveTimer = waveDuration;
+        if (spawner != null)
+            spawner.OnFinalEnemySpawned += HandleFinalEnemySpawned;
 
-        StartCombat();
-        UpdateUI();
+        // Panel başlangıç
+        shopPanel?.CloseShop();
+        if (upgradePanel != null) upgradePanel.gameObject.SetActive(false);
+
+        StartWave();
+        RefreshUI();
     }
 
     private void Update()
     {
-        if (!inCombat)
+        switch (state)
         {
-            return;
+            case WaveState.Combat:
+                TickCombat();
+                break;
+
+            case WaveState.Elite:
+                TickElite();
+                break;
+
+            case WaveState.Upgrade:
+            case WaveState.Shop:
+                break;
         }
 
-        waveTimer -= Time.deltaTime;
-        if (waveTimer <= 0f)
-        {
-            EndCombat();
-            spawner.ClearAllEnemies();
-            ClearAllXpOrbs();
-
-            return;
-        }
-        UpdateUI();
+        RefreshUI();
     }
 
-    private void StartCombat()
+    private void HandleFinalEnemySpawned(Enemy e)
     {
-        inCombat = true;
+        currentEliteEnemy = e;
+        // Boss UI burada tetiklenecek (aşağıda)
+    }
 
-        if (player != null) { player.HealToFull(); }
+
+    // -------------------- STATE: COMBAT --------------------
+
+    private void StartWave()
+    {
+        SetState(WaveState.Combat);
+        currentKills = 0;
+        targetKills = baseKillCount + (currentWaveLevel - 1) * killIncreasePerWave;
 
 
         waveTimer = waveDuration;
 
-        if (spawner != null) { spawner.spawningEnabled = true; }
+        if (spawner != null)
+        {
+            spawner.SetSpawnLimit(targetKills);
+            spawner.ApplyWaveSettings(currentWaveLevel);
+            spawner.spawningEnabled = true;
+        }
 
+        // Wave başında canı full'lemek istiyorsan:
+        if (player != null) player.HealToFull();
+
+        healthUI?.SetVisible(true);
+        Time.timeScale = 1f;
+    }
+
+    public int GetTargetKills()
+    {
+        return targetKills;
+    }
+
+
+    private void TickCombat()
+    {
+        // waveTimer -= Time.deltaTime;
+
+        // if (waveTimer <= 0f)
+        // {
+        //     EndWave_ToIntermission();
+        // }
+
+        if (currentKills >= targetKills && spawner.AreAllEnemiesSpawned())
+        {
+            StartElitePhase();
+        }
+    }
+
+    private void StartElitePhase()
+    {
+        SetState(WaveState.Elite);
+
+        // Normal spawn kapat
+        if (spawner != null) spawner.spawningEnabled = false;
+
+        // Sahayı temizle (senin tasarımın: wave temizlenince arena boss’a dönüyor)
+        spawner?.ClearAllEnemies();
+        ClearAllXpOrbs();
+        ClearAllWarnings();
+
+        // Elite timer
+        eliteTimer = eliteTimeLimit;
+        eliteAlive = true;
+
+        // Elite spawn (Spawner'a ekleyeceğiz)
+        if (spawner != null)
+            spawner.SpawnFinalEnemyForWave(currentWaveLevel);
+
+
+        // savaş devam etsin
         Time.timeScale = 1f;
         healthUI?.SetVisible(true);
+        OnEliteStarted?.Invoke();
     }
 
-    private void EndCombat()
+    private void TickElite()
     {
-        inCombat = false;
+        if (!eliteAlive)
+        {
+            EndElite_Success();
+            return;
+        }
 
+        eliteTimer -= Time.deltaTime;
 
-        if (spawner != null) { spawner.spawningEnabled = false; }
+        if (eliteTimer <= 0f)
+        {
+            EndElite_Fail();
+        }
+    }
 
+    public void RegisterEliteKilled()
+    {
+        if (state != WaveState.Elite) return;
+        eliteAlive = false;
+    }
+
+    private void GoToIntermission()
+    {
+        // Oyun durdur
         Time.timeScale = 0f;
+        healthUI?.SetVisible(false);
 
-        UpdateUI();
-
-        remainingUpgradePicks = player != null ? player.pendingUpgradePoints : 0;
+        remainingUpgradePicks = (player != null) ? player.pendingUpgradePoints : 0;
 
         if (remainingUpgradePicks > 0)
-        {
-            ShowNextUpgradePick();
-        }
+            OpenUpgrade();
         else
-        {
-            shopPanel.OpenShop();
-            healthUI?.SetVisible(false);
-        }
-
-        healthUI?.SetVisible(false);
-        Debug.Log($"Wave {currentWaveLevel} ended. Prepare for upgrades!");
+            OpenShop();
     }
 
-    private void ShowNextUpgradePick()
+    private void EndElite_Success()
     {
-        upgradePanel.Open();
+        OnEliteEnded?.Invoke();     // ✅ overlay + zoom geri dönsün
+        currentEliteEnemy = null;
+
+        GoToIntermission();         // sonra pause
+    }
+
+    private void EndElite_Fail()
+    {
+        OnEliteEnded?.Invoke();     // ✅ fail'de de kapanmalı
+        currentEliteEnemy = null;
+
+        Debug.Log("Elite failed (time out). Run over for now (retry later).");
+        Time.timeScale = 1f;
+
+        UnityEngine.SceneManagement.SceneManager.LoadScene(
+            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex
+        );
+    }
+
+
+
+    public bool IsKillTargetReached()
+    {
+        return currentKills >= targetKills;
+    }
+
+
+    private void EndWave_ToIntermission()
+    {
+        // Combat bitiş
+        if (spawner != null) spawner.spawningEnabled = false;
+
+        // Saha temizliği (şimdilik eski akışın aynısı)
+        spawner?.ClearAllEnemies();
+        ClearAllXpOrbs();
+        ClearAllWarnings();
+
+        // Oyun durdur (UI için istersen sonra unscaled’a geçeriz)
+        Time.timeScale = 0f;
         healthUI?.SetVisible(false);
+
+        // Kaç upgrade hakkı var?
+        remainingUpgradePicks = (player != null) ? player.pendingUpgradePoints : 0;
+
+        if (remainingUpgradePicks > 0)
+            OpenUpgrade();
+        else
+            OpenShop();
+    }
+
+    // -------------------- STATE: UPGRADE --------------------
+
+    private void OpenUpgrade()
+    {
+        SetState(WaveState.Upgrade);
+
+        healthUI?.SetVisible(false);
+        if (upgradePanel != null) upgradePanel.Open();
     }
 
     public void OnUpgradeChosen()
     {
+        // Burayı UpgradePanel çağırıyor (senin mevcut akışın)
         remainingUpgradePicks = Mathf.Max(0, remainingUpgradePicks - 1);
-
-        if (player != null)
-            player.pendingUpgradePoints = Mathf.Max(0, player.pendingUpgradePoints - 1);
+        if (player != null) player.pendingUpgradePoints = Mathf.Max(0, player.pendingUpgradePoints - 1);
 
         if (remainingUpgradePicks > 0)
         {
-            ShowNextUpgradePick();
+            OpenUpgrade(); // tekrar 3 kart roll
         }
         else
         {
-            shopPanel?.OpenShop();
-            healthUI?.SetVisible(false);
+            OpenShop();
         }
     }
 
+    // -------------------- STATE: SHOP --------------------
 
-    private void UpdateUI()
+    private void OpenShop()
     {
-        if (waveText != null) { waveText.text = $"Wave: {currentWaveLevel}"; }
-        if (timerText != null) timerText.text = $"Time: {Mathf.CeilToInt(waveTimer)}";
-        if (levelText != null && player != null) { levelText.text = $"Level: {player.playerLevel}"; }
+        SetState(WaveState.Shop);
+
+        healthUI?.SetVisible(false);
+        shopPanel?.OpenShop();
     }
 
+    // ShopPanel Continue butonundan çağrılacak
     public void ContinueForNextLevel()
     {
-        // ✅ HER ŞEYDEN ÖNCE: oyunu çöz (timeScale 0 kalmasın)
-        Time.timeScale = 1f;
-        inCombat = true;
-
-        // ✅ Ref’leri garantiye al (sahnede değişmiş olabilir)
-        if (spawner == null) spawner = FindFirstObjectByType<EnemySpawner>();
-        if (player == null) player = FindFirstObjectByType<Player>();
-        if (shopPanel == null) shopPanel = FindFirstObjectByType<ShopPanel>();
-        if (upgradePanel == null) upgradePanel = FindFirstObjectByType<UpgradePanel>();
-
-        // ✅ Panelleri kapat (bazı durumlarda açık kalabiliyor)
+        // shop’tan çıkarken
         shopPanel?.CloseShop();
         if (upgradePanel != null) upgradePanel.gameObject.SetActive(false);
 
+        // bir sonraki wave hazırlığı
         ClearAllXpOrbs();
+        ClearAllWarnings();
         ResetPlayerToCenter();
 
         currentWaveLevel++;
 
-        // ✅ spawner ayarları hata verirse bile combat başlasın
-        if (spawner != null)
-        {
-            try
-            {
-                spawner.ApplyWaveSettings(currentWaveLevel);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"ApplyWaveSettings error: {e}");
-            }
-        }
-        else
-        {
-            Debug.LogError("Spawner is NULL in ContinueForNextLevel!");
-        }
-
-        StartCombat();
-        UpdateUI();
+        // tekrar combat
+        StartWave();
     }
 
+    // -------------------- HELPERS --------------------
 
+    private void SetState(WaveState newState)
+    {
+        state = newState;
+    }
+
+    private void RefreshUI()
+    {
+        if (waveText != null) waveText.text = $"Wave: {currentWaveLevel}";
+        if (levelText != null && player != null) levelText.text = $"Level: {player.playerLevel}";
+
+        if (timerText == null) return;
+
+        if (state == WaveState.Combat)
+            timerText.text = $"Kills: {currentKills} / {targetKills}";
+
+        else if (state == WaveState.Upgrade)
+            timerText.text = "Upgrade";
+
+        else if (state == WaveState.Elite)
+            timerText.text = $"ELITE: {Mathf.CeilToInt(eliteTimer)}s";
+        else
+            timerText.text = "Shop";
+    }
 
     private void ClearAllXpOrbs()
     {
-        // XP orb’larının tag’i "XP" ise:
         var xps = GameObject.FindGameObjectsWithTag("XP");
+        for (int i = 0; i < xps.Length; i++)
+            Destroy(xps[i]);
+    }
+
+    private void ClearAllWarnings()
+    {
+        var xps = GameObject.FindGameObjectsWithTag("Warning");
         for (int i = 0; i < xps.Length; i++)
             Destroy(xps[i]);
     }
@@ -195,6 +363,13 @@ public class GameManager : MonoBehaviour
         if (playerSpawnPoint != null)
             player.transform.position = playerSpawnPoint.position;
         else
-            player.transform.position = Vector3.zero; // spawn point bağlamadıysan 0,0
+            player.transform.position = Vector3.zero;
+    }
+
+    public void RegisterEnemyKill()
+    {
+        if (state != WaveState.Combat) return;
+        currentKills++;
+        RefreshUI();
     }
 }
