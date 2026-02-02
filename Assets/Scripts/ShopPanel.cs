@@ -88,6 +88,14 @@ public class ShopPanel : MonoBehaviour
     [SerializeField] private Image itemImage2;
     [SerializeField] private Image itemImage3;
 
+    [Header("Refresh Cost")]
+    [SerializeField] private int baseRefreshCost = 2;          // Wave 1 başlangıcı (istersen 0 da olur)
+    [SerializeField] private int refreshCostPerWave = 1;       // Her wave shop açılınca + kaç
+    [SerializeField] private int refreshCostIncrease = 2;      // Her tıklamada ne kadar artsın
+    [SerializeField] private int refreshCostMax = 999;         // istersen limit
+
+    private int currentRefreshCost;
+
     [Header("Weapon Icons")]
     [SerializeField] private Sprite rifleIcon;
     [SerializeField] private Sprite shotgunIcon;
@@ -110,6 +118,7 @@ public class ShopPanel : MonoBehaviour
     [Header("Refresh")]
     [SerializeField] private int refreshCost = 5;
     [SerializeField] private TMP_Text refreshCostText;
+    [SerializeField] private Button refreshButton;
 
     [Header("Card Backgrounds (Rarity)")]
     [SerializeField] private Image cardBg0;
@@ -146,6 +155,14 @@ public class ShopPanel : MonoBehaviour
     public void OpenShop()
     {
         gameObject.SetActive(true);
+        if (player == null) player = FindFirstObjectByType<Player>();
+        if (gameManager == null) gameManager = FindFirstObjectByType<GameManager>();
+
+        // ✅ Wave bazlı refresh reset
+        int wave = (gameManager != null) ? gameManager.currentWaveLevel : 1;
+        currentRefreshCost = baseRefreshCost + (wave - 1) * refreshCostPerWave;
+
+        UpdateRefreshButtonUI();
 
         RollAllOffers();
         RefreshUI();
@@ -184,6 +201,7 @@ public class ShopPanel : MonoBehaviour
     // Refresh butonu buraya bağlanabilir
     public void OnRefreshButton()
     {
+        if (player == null) player = FindFirstObjectByType<Player>();
         if (player == null) return;
 
         // para yetmiyorsa refresh yapma
@@ -194,10 +212,24 @@ public class ShopPanel : MonoBehaviour
             return;
         }
 
-        RollAllOffers();   // hepsini yenile
+        // hepsini yenile
+        RollAllOffers();
+
+        // ✅ her tıklamada refresh maliyeti artsın
+        refreshCost = Mathf.Min(refreshCostMax, refreshCost + refreshCostIncrease);
+
         RefreshUI();
     }
 
+
+    private void UpdateRefreshButtonUI()
+    {
+        if (refreshCostText != null)
+            refreshCostText.text = $"Refresh ({currentRefreshCost})";
+
+        if (refreshButton != null && player != null)
+            refreshButton.interactable = player.gold >= currentRefreshCost;
+    }
 
     // -------------------- ROLL --------------------
 
@@ -462,6 +494,8 @@ public class ShopPanel : MonoBehaviour
         if (cardBg2 != null) cardBg2.color = GetRarityColor(offers[2].rarity);
         if (cardBg3 != null) cardBg3.color = GetRarityColor(offers[3].rarity);
 
+        refreshButton.interactable = player.gold >= refreshCost;
+        refreshCostText.text = $"Refresh ({refreshCost})";
     }
 
     private Sprite OfferToIcon(Offer offer)

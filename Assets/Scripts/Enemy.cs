@@ -6,6 +6,10 @@ public class Enemy : MonoBehaviour
     [SerializeField] GameObject xpOrbPrefab;
     [SerializeField] float moveSpeed = 2f;
     [SerializeField] int maxHp = 3;
+
+    [Header("Rewards")]
+    public int baseGold = 1; // prefabdan ayarlanacak
+
     int hp;
     public int contactDamage = 1;
     [SerializeField] float hitFlashDuration = 0.06f;
@@ -134,20 +138,16 @@ public class Enemy : MonoBehaviour
         isDead = true;
         deathPopTimer = deathPopDuration;
 
-        FindFirstObjectByType<GameManager>()?.RegisterEnemyKill();
         var gm = FindFirstObjectByType<GameManager>();
         if (gm != null)
-        {
-            // Elite fazındayken ölen “final düşman” elite’dir
-            // (sahada tek düşman var dediğin için bu yaklaşım yeterli)
-            gm.RegisterEliteKilled();
+            gm.OnEnemyKilled(this);
 
-            // hareketi durdur
-            if (rb != null) rb.simulated = false;
+        // hareketi durdur
+        if (rb != null) rb.simulated = false;
 
-            // collider varsa kapat (2D)
-            var col = GetComponent<Collider2D>();
-            if (col != null) col.enabled = false;
-        }
+        // collider varsa kapat (2D)
+        var col = GetComponent<Collider2D>();
+        if (col != null) col.enabled = false;
     }
+
 }

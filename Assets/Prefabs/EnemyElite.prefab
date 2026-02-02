@@ -128,8 +128,10 @@ MonoBehaviour:
   xpOrbPrefab: {fileID: 3437380876215726848, guid: 8bc1c6d4573b5a24eb6c48bf3624d68e, type: 3}
   moveSpeed: 2
   maxHp: 8
+  baseGold: 5
   contactDamage: 5
   hitFlashDuration: 0.06
+  enableChaseMovement: 1
   deathPopDuration: 0.12
   deathPopScale: 1.15
 --- !u!50 &8103593029580691222

@@ -1167,7 +1167,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -835.6613, y: 298.18784}
+  m_AnchoredPosition: {x: -835.6613, y: 440.1}
   m_SizeDelta: {x: 216.1044, y: 43.6243}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &342717952
@@ -2267,6 +2267,10 @@ MonoBehaviour:
   itemImage1: {fileID: 384291873}
   itemImage2: {fileID: 1297491631}
   itemImage3: {fileID: 300452345}
+  baseRefreshCost: 2
+  refreshCostPerWave: 1
+  refreshCostIncrease: 2
+  refreshCostMax: 999
   rifleIcon: {fileID: 21300000, guid: 37596045455ad83479d38bb56a6719a6, type: 3}
   shotgunIcon: {fileID: 21300000, guid: 8046abb8d861d2349bb20a9366607b3d, type: 3}
   sniperIcon: {fileID: 21300000, guid: 8ef1293b32314e944b48907c6a2dad96, type: 3}
@@ -2284,6 +2288,7 @@ MonoBehaviour:
   buyButton3: {fileID: 84212855}
   refreshCost: 5
   refreshCostText: {fileID: 2106582751}
+  refreshButton: {fileID: 1632285393}
   cardBg0: {fileID: 105417571}
   cardBg1: {fileID: 860668894}
   cardBg2: {fileID: 2022990610}
@@ -3103,7 +3108,7 @@ RectTransform:
   m_Father: {fileID: 1234624117}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0.000061035156, y: 0}
   m_SizeDelta: {x: 0.00012207, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -4775,13 +4780,14 @@ GameObject:
   m_Component:
   - component: {fileID: 1006801049}
   - component: {fileID: 1006801050}
+  - component: {fileID: 1006801051}
   m_Layer: 5
   m_Name: BossUI
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1006801049
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4817,6 +4823,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bossNameText: {fileID: 1752232308}
   hpSlider: {fileID: 137457235}
+  group: {fileID: 0}
+  letterDelay: 0.04
+  popScale: 1.15
+  popDuration: 0.15
+--- !u!225 &1006801051
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1006801048}
+  m_Enabled: 1
+  m_Alpha: 0
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1030860142
 GameObject:
   m_ObjectHideFlags: 0
@@ -4848,6 +4870,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   waveDuration: 20
   currentWaveLevel: 1
+  goldGrowthPerWave: 0.12
   baseKillCount: 8
   killIncreasePerWave: 4
   eliteTimeLimit: 20
@@ -4892,7 +4915,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1062477786
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4909,11 +4932,11 @@ RectTransform:
   - {fileID: 342717951}
   m_Father: {fileID: 181849589}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0.5, y: 0.0009765625}
-  m_SizeDelta: {x: -1, y: 0}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 1919, y: 1079}
+  m_Pivot: {x: 0, y: 1}
 --- !u!114 &1062477787
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5146,7 +5169,7 @@ MonoBehaviour:
   playerLevel: 1
   currentXp: 0
   xpToNextLevel: 5
-  gold: 1000
+  gold: 0
   spearStabPrefab: {fileID: 5437998801560917403, guid: 9a259f9b05ce732409fc7ca8ecf70360, type: 3}
   hammerRingPrefab: {fileID: 7419131118064563808, guid: c04ac42a94e1b7243bd472fe124f2f7e, type: 3}
   luck: 0
@@ -6194,7 +6217,7 @@ RectTransform:
   m_Father: {fileID: 187759795}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: -0.000015258789, y: 0}
   m_SizeDelta: {x: 0.000030518, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}

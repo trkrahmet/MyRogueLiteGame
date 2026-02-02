@@ -16,6 +16,10 @@ public class GameManager : MonoBehaviour
     public float waveDuration = 60f;
     public int currentWaveLevel = 1;
 
+    [Header("Gold Settings")]
+    [SerializeField] private float goldGrowthPerWave = 0.12f; // her wave %12 artış
+
+
     [Header("Kill-Based Wave")]
     public int baseKillCount = 8;          // Wave 1
     public int killIncreasePerWave = 4;    // Her wave artışı
@@ -93,6 +97,40 @@ public class GameManager : MonoBehaviour
 
         RefreshUI();
     }
+
+    public void OnEnemyKilled(Enemy e)
+    {
+        // 1) GOLD ver
+        GiveGoldForEnemy(e);
+
+        // 2) Kill sayacı (Combat ise)
+        if (state == WaveState.Combat)
+        {
+            currentKills++;
+            RefreshUI();
+            return;
+        }
+
+        // 3) Elite fazındaysa final enemy öldü say
+        if (state == WaveState.Elite)
+        {
+            eliteAlive = false;
+            RefreshUI();
+            return;
+        }
+    }
+
+    private void GiveGoldForEnemy(Enemy e)
+    {
+        if (player == null) return;
+
+        int baseGold = (e != null) ? Mathf.Max(0, e.baseGold) : 1;
+        float mult = 1f + (currentWaveLevel - 1) * goldGrowthPerWave;
+
+        int gained = Mathf.Max(0, Mathf.RoundToInt(baseGold * mult));
+        player.AddGold(gained);
+    }
+
 
     private void HandleFinalEnemySpawned(Enemy e)
     {
@@ -190,11 +228,11 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void RegisterEliteKilled()
-    {
-        if (state != WaveState.Elite) return;
-        eliteAlive = false;
-    }
+    // public void RegisterEliteKilled()
+    // {
+    //     if (state != WaveState.Elite) return;
+    //     eliteAlive = false;
+    // }
 
     private void GoToIntermission()
     {
@@ -366,10 +404,10 @@ public class GameManager : MonoBehaviour
             player.transform.position = Vector3.zero;
     }
 
-    public void RegisterEnemyKill()
-    {
-        if (state != WaveState.Combat) return;
-        currentKills++;
-        RefreshUI();
-    }
+    // public void RegisterEnemyKill()
+    // {
+    //     if (state != WaveState.Combat) return;
+    //     currentKills++;
+    //     RefreshUI();
+    // }
 }
