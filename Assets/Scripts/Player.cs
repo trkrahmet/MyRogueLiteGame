@@ -358,7 +358,7 @@ public class Player : MonoBehaviour
         }
     }
 
-    void TakeDamage(int amount)
+    public void TakeDamage(int amount)
     {
         int finalDamage = Mathf.Max(1, amount - armor); // ✅ armor
         currentHp -= finalDamage;

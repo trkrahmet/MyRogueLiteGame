@@ -69,6 +69,8 @@ public class ElitePresentation : MonoBehaviour
 
     void OnEliteStart()
     {
+        if (cam != null) camBasePos = cam.transform.position;
+
         // arena shrink + kararma + zoom + küçük shake (giriş vurucu olsun)
         StartArenaScale(eliteScale);
         StartOverlay(eliteOverlayAlpha);
@@ -177,9 +179,14 @@ public class ElitePresentation : MonoBehaviour
     void StartShake(float dur, float str)
     {
         if (cam == null) return;
+
+        // ✅ en kritik satır: o anki kamerayı baz al
+        camBasePos = cam.transform.position;
+
         if (shakeRoutine != null) StopCoroutine(shakeRoutine);
         shakeRoutine = StartCoroutine(ShakeRoutine(dur, str));
     }
+
 
     IEnumerator ShakeRoutine(float dur, float str)
     {

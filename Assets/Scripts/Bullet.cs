@@ -86,5 +86,10 @@ public class Bullet : MonoBehaviour
         Destroy(gameObject);
     }
 
-
+    public void IgnoreCollider(Collider2D col)
+    {
+        var myCol = GetComponent<Collider2D>();
+        if (myCol != null && col != null)
+            Physics2D.IgnoreCollision(myCol, col);
+    }
 }

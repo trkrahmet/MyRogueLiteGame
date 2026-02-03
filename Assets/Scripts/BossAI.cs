@@ -85,16 +85,17 @@ public class BossAI : MonoBehaviour
 
     private void ShootAtPlayer()
     {
-        if (bulletPrefab == null) return;
+        if (bulletPrefab == null || player == null) return;
 
         Vector2 dir = ((Vector2)player.position - rb.position).normalized;
 
-        GameObject b = Instantiate(bulletPrefab, rb.position, Quaternion.identity);
-        var bullet = b.GetComponent<Bullet>(); // sende Bullet var ama enemy bullet ayrı istiyorsan sonra ayırırız
-        if (bullet != null)
-            bullet.SetDirection(dir);
+        // ✅ mermiyi boss collider’ının DIŞINDA doğur
+        Vector3 spawnPos = (Vector3)rb.position + (Vector3)(dir * 0.6f);
 
-        // Not: Bu Bullet scriptin Enemy’yi vuruyor olabilir.
-        // Boss'un mermisi için ayrı "EnemyBullet" yapman daha doğru (sonra).
+        GameObject b = Instantiate(bulletPrefab, spawnPos, Quaternion.identity);
+
+        var eb = b.GetComponent<EnemyBullet>();
+        if (eb != null)
+            eb.Fire(dir, transform);
     }
 }

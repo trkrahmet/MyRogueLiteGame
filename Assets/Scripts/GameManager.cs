@@ -19,6 +19,24 @@ public class GameManager : MonoBehaviour
     [Header("Gold Settings")]
     [SerializeField] private float goldGrowthPerWave = 0.12f; // her wave %12 artış
 
+    private bool transitionLocked = false;
+    private Coroutine transitionRoutine;
+
+    [SerializeField] private Transform eliteCenterPoint; // inspector’dan arena merkezini ver
+    [SerializeField] private float eliteTeleportSafeRadius = 0.5f; // çakışmayı azaltmak için
+    private Transform playerTransform;
+
+    [Header("Elite Arena Spawn")]
+    [SerializeField] private Vector2 elitePlayerCenter = Vector2.zero;  // (0,0)
+    [SerializeField] private Vector2 bossSpawnDirection = Vector2.up; // örn: yukarı
+    [SerializeField] private float bossSpawnDistance = 6f;            // mesafe
+    [SerializeField] private float bossSpawnSideJitter = 1.2f;        // sağ-sol küçük sapma
+
+
+
+    [Header("Transition Delays")]
+    [SerializeField] private float preEliteDelay = 0.8f;      // Combat bitince Elite'a geçmeden önce bekleme
+    [SerializeField] private float preUpgradeDelay = 1.0f;    // Boss ölünce Upgrade/Shop'a geçmeden önce bekleme
 
     [Header("Kill-Based Wave")]
     public int baseKillCount = 8;          // Wave 1
@@ -179,10 +197,21 @@ public class GameManager : MonoBehaviour
         //     EndWave_ToIntermission();
         // }
 
-        if (currentKills >= targetKills && spawner.AreAllEnemiesSpawned())
+        if (!transitionLocked && currentKills >= targetKills && spawner.AreAllEnemiesSpawned())
         {
-            StartElitePhase();
+            transitionLocked = true;
+
+            if (transitionRoutine != null) StopCoroutine(transitionRoutine);
+            transitionRoutine = StartCoroutine(Co_StartEliteAfterDelay());
         }
+
+    }
+
+    private void CachePlayer()
+    {
+        if (playerTransform != null) return;
+        var go = GameObject.FindGameObjectWithTag("Player");
+        if (go != null) playerTransform = go.transform;
     }
 
     private void StartElitePhase()
@@ -194,7 +223,7 @@ public class GameManager : MonoBehaviour
 
         // Sahayı temizle (senin tasarımın: wave temizlenince arena boss’a dönüyor)
         spawner?.ClearAllEnemies();
-        ClearAllXpOrbs();
+        // ClearAllXpOrbs();
         ClearAllWarnings();
 
         // Elite timer
@@ -203,8 +232,10 @@ public class GameManager : MonoBehaviour
 
         // Elite spawn (Spawner'a ekleyeceğiz)
         if (spawner != null)
+        {
+            TeleportPlayerToEliteCenter();
             spawner.SpawnFinalEnemyForWave(currentWaveLevel);
-
+        }
 
         // savaş devam etsin
         Time.timeScale = 1f;
@@ -212,13 +243,50 @@ public class GameManager : MonoBehaviour
         OnEliteStarted?.Invoke();
     }
 
+    private void TeleportPlayerToEliteCenter()
+    {
+        CachePlayer();
+        if (playerTransform == null) return;
+
+        playerTransform.position = new Vector3(elitePlayerCenter.x, elitePlayerCenter.y, playerTransform.position.z);
+    }
+
+    private System.Collections.IEnumerator Co_StartEliteAfterDelay()
+    {
+        // Loot/xp toplamak için pencere
+        yield return new WaitForSeconds(preEliteDelay);
+
+        // Bu süre içinde state değiştiyse iptal
+        if (state != WaveState.Combat)
+        {
+            transitionLocked = false;
+            yield break;
+        }
+
+        // Elite'a geçerken artık sahayı temizleyebiliriz
+        ClearAllXpOrbs();
+        ClearAllWarnings();
+
+        StartElitePhase();
+
+        transitionLocked = false;
+    }
+
+
     private void TickElite()
     {
         if (!eliteAlive)
         {
-            EndElite_Success();
+            if (!transitionLocked)
+            {
+                transitionLocked = true;
+
+                if (transitionRoutine != null) StopCoroutine(transitionRoutine);
+                transitionRoutine = StartCoroutine(Co_EndEliteSuccessAfterDelay());
+            }
             return;
         }
+
 
         eliteTimer -= Time.deltaTime;
 
@@ -247,6 +315,23 @@ public class GameManager : MonoBehaviour
         else
             OpenShop();
     }
+
+    private System.Collections.IEnumerator Co_EndEliteSuccessAfterDelay()
+    {
+        // Boss öldü → oyuncu XP/loot toplasın (oyun durmasın)
+        yield return new WaitForSeconds(preUpgradeDelay);
+
+        // Bu süre içinde state değiştiyse iptal
+        if (state != WaveState.Elite)
+        {
+            transitionLocked = false;
+            yield break;
+        }
+
+        EndElite_Success(); // burada zaten GoToIntermission() -> Time.timeScale=0 var
+        transitionLocked = false;
+    }
+
 
     private void EndElite_Success()
     {

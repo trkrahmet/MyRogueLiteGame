@@ -95,6 +95,33 @@ public class EnemySpawner : MonoBehaviour
     }
 
 
+    // public void SpawnFinalEnemyForWave(int waveLevel)
+    // {
+    //     currentWaveLevel = waveLevel;
+
+    //     GameObject prefab = PickBossPrefab(waveLevel);
+    //     if (prefab == null)
+    //     {
+    //         Debug.LogWarning("No boss prefab in pool!");
+    //         return;
+    //     }
+
+    //     if (!TryGetRandomPointInArea(out Vector3 pos))
+    //     {
+    //         Debug.LogWarning("SpawnFinalEnemyForWave: no spawn point!");
+    //         return;
+    //     }
+
+    //     if (!TryGetPointNearPlayerInCamera(out Vector3 pos, 4f, 7f, 1f))
+    //     {
+    //         Debug.LogWarning("No camera-safe spawn point!");
+    //         return;
+    //     }
+
+
+    //     StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos, waveLevel));
+    // }
+
     public void SpawnFinalEnemyForWave(int waveLevel)
     {
         currentWaveLevel = waveLevel;
@@ -106,14 +133,68 @@ public class EnemySpawner : MonoBehaviour
             return;
         }
 
-        if (!TryGetRandomPointInArea(out Vector3 pos))
+        Vector3 pos;
+        if (!TryGetPointNearPlayerInCamera(out pos, 4f, 7f, 1f))
         {
-            Debug.LogWarning("SpawnFinalEnemyForWave: no spawn point!");
+            Debug.LogWarning("No camera-safe spawn point!");
             return;
         }
 
         StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos, waveLevel));
     }
+
+
+    public void SpawnFinalEnemyForWaveAtPosition(int waveLevel, Vector3 desiredPos)
+    {
+        currentWaveLevel = waveLevel;
+
+        GameObject prefab = PickBossPrefab(waveLevel);
+        if (prefab == null)
+        {
+            Debug.LogWarning("No boss prefab in pool!");
+            return;
+        }
+
+        // SpawnArea içinde değilse en yakın geçerli noktayı bulmaya çalış
+        Vector3 pos = desiredPos;
+        pos.z = 0f;
+
+        if (spawnArea != null && !spawnArea.OverlapPoint(pos))
+        {
+            // fallback: yakınlarda geçerli nokta ara
+            if (!TryGetPointNearPosition(pos, out pos, 0.5f, 3.0f))
+            {
+                Debug.LogWarning("Desired boss pos invalid and no nearby valid point!");
+                return;
+            }
+        }
+
+        StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos, waveLevel));
+    }
+
+    // helper: verilen merkezin yakınında geçerli nokta ara
+    private bool TryGetPointNearPosition(Vector3 center, out Vector3 point, float minDist, float maxDist)
+    {
+        point = Vector3.zero;
+
+        for (int i = 0; i < maxPositionTries; i++)
+        {
+            Vector2 dir = Random.insideUnitCircle.normalized;
+            float dist = Random.Range(minDist, maxDist);
+
+            Vector3 candidate = center + (Vector3)(dir * dist);
+            candidate.z = 0f;
+
+            if (spawnArea != null && !spawnArea.OverlapPoint(candidate))
+                continue;
+
+            point = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
 
     private GameObject PickBossPrefab(int waveLevel)
     {
@@ -468,6 +549,44 @@ public class EnemySpawner : MonoBehaviour
     public bool AreAllEnemiesSpawned()
     {
         return spawnedThisWave >= spawnLimit;
+    }
+
+    bool TryGetPointNearPlayerInCamera(out Vector3 point, float minDist, float maxDist, float margin = 1f)
+    {
+        point = Vector3.zero;
+        if (playerTransform == null || spawnArea == null) return false;
+
+        var cam = Camera.main;
+        if (cam == null) return false;
+
+        // Kamera world sınırları (margin ile içeri al)
+        Vector3 bl = cam.ViewportToWorldPoint(new Vector3(0f, 0f, 0f));
+        Vector3 tr = cam.ViewportToWorldPoint(new Vector3(1f, 1f, 0f));
+        float minX = bl.x + margin;
+        float maxX = tr.x - margin;
+        float minY = bl.y + margin;
+        float maxY = tr.y - margin;
+
+        for (int i = 0; i < maxPositionTries; i++)
+        {
+            Vector2 dir = Random.insideUnitCircle.normalized;
+            float dist = Random.Range(minDist, maxDist);
+            Vector3 candidate = playerTransform.position + (Vector3)(dir * dist);
+            candidate.z = 0f;
+
+            // Kamera içinde mi?
+            if (candidate.x < minX || candidate.x > maxX || candidate.y < minY || candidate.y > maxY)
+                continue;
+
+            // SpawnArea içinde mi?
+            if (!spawnArea.OverlapPoint(candidate))
+                continue;
+
+            point = candidate;
+            return true;
+        }
+
+        return false;
     }
 
 }
