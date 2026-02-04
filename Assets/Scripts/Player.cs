@@ -40,6 +40,7 @@ public class Player : MonoBehaviour
     public Animator anim;
     Vector2 lastMoveDir = Vector2.down; // varsayılan aşağı baksın
 
+    [SerializeField] private Color normalColor = Color.white;
 
     [Header("Player Stats")]
     public float moveSpeed = 6f;
@@ -112,6 +113,8 @@ public class Player : MonoBehaviour
 
         if (spriteRenderer == null)
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+
+        normalColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
 
         currentHp = maxHp;
         NotifyHealthUI();
@@ -188,6 +191,23 @@ public class Player : MonoBehaviour
         Vector2 finalVel = (inputMove * moveSpeed) + knockbackVel;
         rb.MovePosition(rb.position + finalVel * Time.fixedDeltaTime);
     }
+
+    public void ResetVisualState()
+    {
+        if (hitFlashRoutine != null)
+        {
+            StopCoroutine(hitFlashRoutine);
+            hitFlashRoutine = null;
+        }
+
+        CancelInvoke();
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.color = normalColor;   // ana reset
+        }
+    }
+
 
     private void TickRegen()
     {
@@ -672,25 +692,36 @@ public class Player : MonoBehaviour
 
     private Coroutine hitFlashRoutine;
 
-    private void PlayHitFlash()
+    void PlayHitFlash()
     {
         if (spriteRenderer == null) return;
 
+        // Üst üste hit gelirse önceki flash'ı kes
         if (hitFlashRoutine != null)
+        {
             StopCoroutine(hitFlashRoutine);
+            hitFlashRoutine = null;
+        }
+
+        // ✅ kritik: kırmızıda kalmışsa önce normale çek
+        spriteRenderer.color = normalColor;
 
         hitFlashRoutine = StartCoroutine(HitFlashCoroutine());
     }
 
     private System.Collections.IEnumerator HitFlashCoroutine()
     {
-        Color original = spriteRenderer.color;
-
         spriteRenderer.color = hitColor;
-        yield return new WaitForSeconds(hitFlashDuration);
 
-        spriteRenderer.color = original;
+        // ✅ kritik: pause olsa bile bitsin (timescale 0 etkilenmez)
+        yield return new WaitForSecondsRealtime(hitFlashDuration);
+
+        // ✅ kritik: original değil, her zaman normale dön
+        spriteRenderer.color = normalColor;
+
         hitFlashRoutine = null;
     }
 
+    private void OnDisable() => ResetVisualState();
+    private void OnEnable() => ResetVisualState();
 }

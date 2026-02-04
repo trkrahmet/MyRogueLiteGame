@@ -23,7 +23,6 @@ public class GameManager : MonoBehaviour
     private Coroutine transitionRoutine;
 
     [SerializeField] private Transform eliteCenterPoint; // inspector’dan arena merkezini ver
-    [SerializeField] private float eliteTeleportSafeRadius = 0.5f; // çakışmayı azaltmak için
     private Transform playerTransform;
 
     [Header("Elite Arena Spawn")]
@@ -31,8 +30,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Vector2 bossSpawnDirection = Vector2.up; // örn: yukarı
     [SerializeField] private float bossSpawnDistance = 6f;            // mesafe
     [SerializeField] private float bossSpawnSideJitter = 1.2f;        // sağ-sol küçük sapma
-
-
 
     [Header("Transition Delays")]
     [SerializeField] private float preEliteDelay = 0.8f;      // Combat bitince Elite'a geçmeden önce bekleme
@@ -234,7 +231,8 @@ public class GameManager : MonoBehaviour
         if (spawner != null)
         {
             TeleportPlayerToEliteCenter();
-            spawner.SpawnFinalEnemyForWave(currentWaveLevel);
+            Vector3 bossPos = GetBossSpawnPosition();
+            spawner.SpawnFinalEnemyForWaveAtPosition(currentWaveLevel, bossPos);
         }
 
         // savaş devam etsin
@@ -242,6 +240,22 @@ public class GameManager : MonoBehaviour
         healthUI?.SetVisible(true);
         OnEliteStarted?.Invoke();
     }
+
+    private Vector3 GetBossSpawnPosition()
+    {
+        CachePlayer();
+        if (playerTransform == null) return Vector3.zero;
+
+        Vector2 dir = bossSpawnDirection.sqrMagnitude < 0.001f ? Vector2.up : bossSpawnDirection.normalized;
+
+        // player'ın önüne + hafif sağ-sol random
+        Vector2 side = new Vector2(-dir.y, dir.x);
+        float jitter = Random.Range(-bossSpawnSideJitter, bossSpawnSideJitter);
+
+        Vector2 pos2D = (Vector2)playerTransform.position + dir * bossSpawnDistance + side * jitter;
+        return new Vector3(pos2D.x, pos2D.y, 0f);
+    }
+
 
     private void TeleportPlayerToEliteCenter()
     {
@@ -337,6 +351,7 @@ public class GameManager : MonoBehaviour
     {
         OnEliteEnded?.Invoke();     // ✅ overlay + zoom geri dönsün
         currentEliteEnemy = null;
+        player.ResetVisualState();
 
         GoToIntermission();         // sonra pause
     }
