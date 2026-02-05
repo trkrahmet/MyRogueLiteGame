@@ -421,6 +421,9 @@ public class ShopPanel : MonoBehaviour
             ApplyDelta(def.deltas[i]);
         }
 
+        // ✅ Inventory için kaydet
+        player.AddOwnedItem(def.title, def.desc, def.icon, def.cost, (int)def.rarity);
+
         return true;
     }
 

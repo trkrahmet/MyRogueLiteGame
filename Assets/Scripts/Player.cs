@@ -24,6 +24,16 @@ public class Player : MonoBehaviour
         public float baseRange = 6f;
     }
 
+    [Serializable]
+    public struct OwnedItem
+    {
+        public string title;
+        public string desc;
+        public Sprite icon;
+        public int cost;
+        public int rarity; // 0-4 (Common..Legendary)
+    }
+
     public enum WeaponType
     {
         None,
@@ -37,6 +47,10 @@ public class Player : MonoBehaviour
     }
 
     public List<WeaponSlot> weaponSlots = new List<WeaponSlot>();
+
+    [Header("Inventory (Read-only)")]
+    public List<OwnedItem> ownedItems = new List<OwnedItem>();
+
     public Animator anim;
     Vector2 lastMoveDir = Vector2.down; // varsayılan aşağı baksın
 
@@ -720,6 +734,18 @@ public class Player : MonoBehaviour
         spriteRenderer.color = normalColor;
 
         hitFlashRoutine = null;
+    }
+
+    public void AddOwnedItem(string title, string desc, Sprite icon, int cost, int rarity)
+    {
+        ownedItems.Add(new OwnedItem
+        {
+            title = title,
+            desc = desc,
+            icon = icon,
+            cost = cost,
+            rarity = rarity
+        });
     }
 
     private void OnDisable() => ResetVisualState();
