@@ -14,6 +14,22 @@ public class InventoryPanelUI : MonoBehaviour
     [SerializeField] private Transform weaponsParent;
     [SerializeField] private Transform itemsParent;
 
+    [Header("Weapon Slot UI (Fixed)")]
+    [SerializeField] private InventoryWeaponSlotUI firstWeapon;
+    [SerializeField] private InventoryWeaponSlotUI secondWeapon;
+    [SerializeField] private InventoryWeaponSlotUI thirdWeapon;
+    [SerializeField] private InventoryWeaponSlotUI fourthWeapon;
+
+    [Header("Weapon Icons")]
+    [SerializeField] private Sprite rifleSprite;
+    [SerializeField] private Sprite shotgunSprite;
+    [SerializeField] private Sprite sniperSprite;
+    [SerializeField] private Sprite swordSprite;
+    [SerializeField] private Sprite spearSprite;
+    [SerializeField] private Sprite hammerSprite;
+
+    private InventoryWeaponSlotUI[] weaponUI;
+
     [Header("Prefabs")]
     [SerializeField] private InventoryEntryUI entryPrefab;
 
@@ -22,6 +38,7 @@ public class InventoryPanelUI : MonoBehaviour
     private void Awake()
     {
         if (group == null) group = GetComponent<CanvasGroup>();
+        weaponUI = new[] { firstWeapon, secondWeapon, thirdWeapon, fourthWeapon };
         SetOpen(false);
     }
 
@@ -52,35 +69,49 @@ public class InventoryPanelUI : MonoBehaviour
 
         if (player == null) return;
 
-        ClearChildren(weaponsParent);
+        // ❌ BUNU KALDIR:
+        // ClearChildren(weaponsParent);
+
+        // ✅ Item listesi dinamik olduğu için temizlenir
         ClearChildren(itemsParent);
 
-        // ---- WEAPONS (weaponSlots'tan) ----
-        foreach (var ws in player.weaponSlots)
+        // ---- WEAPONS (Fixed UI Slots) ----
+        for (int i = 0; i < weaponUI.Length; i++)
         {
-            if (ws == null) continue;
-            if (ws.type == Player.WeaponType.None) continue;
-            if (!ws.isActive) continue;
+            if (weaponUI[i] == null) continue;
 
-            var e = Instantiate(entryPrefab, weaponsParent);
-            e.Set(
-                icon: null, // istersen burada ikon bağlarız (aşağıda anlatıyorum)
-                title: ws.type.ToString(),
-                desc: $"DMG:{ws.damage}  INT:{ws.interval:0.00}  RNG:{ws.baseRange:0.0}",
-                sub: "Weapon"
+            if (player.weaponSlots == null || i >= player.weaponSlots.Count || player.weaponSlots[i] == null)
+            {
+                weaponUI[i].SetEmpty();
+                continue;
+            }
+
+            var ws = player.weaponSlots[i];
+
+            if (!ws.isActive || ws.type == Player.WeaponType.None)
+            {
+                weaponUI[i].SetEmpty();
+                continue;
+            }
+
+            Sprite icon = GetWeaponIcon(ws.type);
+            Debug.Log($"[InvWeapon] slot{i} type={ws.type} iconNull={(GetWeaponIcon(ws.type) == null)} active={ws.isActive}");
+
+
+            weaponUI[i].SetWeapon(
+                ws.type.ToString(),
+                icon,
+                ws.damage,
+                ws.interval,
+                ws.baseRange
             );
         }
 
-        // ---- ITEMS (ownedItems'tan) ----
+        // ---- ITEMS (Scroll Content) ----
         foreach (var it in player.ownedItems)
         {
             var e = Instantiate(entryPrefab, itemsParent);
-            e.Set(
-                icon: it.icon,
-                title: it.title,
-                desc: it.desc,
-                sub: $"Cost:{it.cost}  Rarity:{it.rarity}"
-            );
+            e.Set(it.icon, it.title, it.desc, $"Cost:{it.cost}", it.rarity);
         }
     }
 
@@ -89,5 +120,19 @@ public class InventoryPanelUI : MonoBehaviour
         if (t == null) return;
         for (int i = t.childCount - 1; i >= 0; i--)
             Destroy(t.GetChild(i).gameObject);
+    }
+
+    private Sprite GetWeaponIcon(Player.WeaponType type)
+    {
+        return type switch
+        {
+            Player.WeaponType.Rifle => rifleSprite,
+            Player.WeaponType.Shotgun => shotgunSprite,
+            Player.WeaponType.Sniper => sniperSprite,
+            Player.WeaponType.Sword => swordSprite,
+            Player.WeaponType.Spear => spearSprite,
+            Player.WeaponType.Hammer => hammerSprite,
+            _ => null
+        };
     }
 }

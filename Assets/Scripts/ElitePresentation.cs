@@ -1,12 +1,32 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using Unity.Cinemachine;
 
 public class ElitePresentation : MonoBehaviour
 {
+    [SerializeField] private float combatOrthoSize = 6.5f;
+
+    private Transform camParent;
+    private Vector3 camBaseLocalPos;
+    private float camBaseOrtho;
+    [SerializeField] private CinemachineCamera vcam;
+    private CinemachineConfiner2D confiner;
+
+    [SerializeField] private Transform player;
+
+    private CinemachineBasicMultiChannelPerlin noise;
+    private Transform originalFollow;
+    private Transform originalLookAt;
+    private int originalPriority;
+    private float originalOrtho;
+
+    private Coroutine noiseRoutine;
+
     [Header("Refs")]
     [SerializeField] private GameManager gm;
     [SerializeField] private EnemySpawner spawner;
+    [SerializeField] private Transform cameraFollowTarget; // genelde Player
 
     [Header("Arena Visual Root (sadece görsel parent)")]
     [SerializeField] private Transform arenaVisualRoot;
@@ -22,9 +42,9 @@ public class ElitePresentation : MonoBehaviour
 
     [Header("Camera FX")]
     [SerializeField] private Camera cam;
-    [SerializeField] private float combatOrthoSize = 6.5f;
+    // [SerializeField] private float combatOrthoSize = 6.5f;
     [SerializeField] private float eliteOrthoSize = 5.2f;
-    [SerializeField] private float camZoomDuration = 0.45f;
+    // [SerializeField] private float camZoomDuration = 0.45f;
     [SerializeField] private float shakeDuration = 0.25f;
     [SerializeField] private float shakeStrength = 0.12f;
 
@@ -40,8 +60,38 @@ public class ElitePresentation : MonoBehaviour
         if (gm == null) gm = FindFirstObjectByType<GameManager>();
         if (spawner == null) spawner = FindFirstObjectByType<EnemySpawner>();
         if (cam == null) cam = Camera.main;
-        if (cam != null) camBasePos = cam.transform.position;
+
+        if (vcam != null)
+        {
+            confiner = vcam.GetComponent<CinemachineConfiner2D>();
+            noise = vcam.GetComponentInChildren<CinemachineBasicMultiChannelPerlin>();
+
+            originalFollow = vcam.Follow;
+            originalLookAt = vcam.LookAt;
+            originalPriority = vcam.Priority;
+            originalOrtho = vcam.Lens.OrthographicSize;
+        }
+
+        // Eğer inspector'da combatOrthoSize girmediysen otomatik al
+        if (combatOrthoSize <= 0f)
+            combatOrthoSize = vcam.Lens.OrthographicSize;
+
+
+        if (cam != null)
+        {
+            camParent = cam.transform.parent;
+            camBaseLocalPos = cam.transform.localPosition;
+            camBasePos = cam.transform.position;
+            camBaseOrtho = cam.orthographic ? cam.orthographicSize : 0f;
+        }
+
+        if (cameraFollowTarget == null)
+        {
+            var p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) cameraFollowTarget = p.transform;
+        }
     }
+
 
     private void OnEnable()
     {
@@ -67,25 +117,70 @@ public class ElitePresentation : MonoBehaviour
             spawner.OnFinalEnemySpawned -= OnFinalEnemySpawned;
     }
 
+    private void InvalidateConfiner()
+    {
+        if (confiner == null) return;
+
+        // Cinemachine sürümüne göre method adı değişebiliyor
+        var t = confiner.GetType();
+        var m =
+            t.GetMethod("InvalidateCache",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            ?? t.GetMethod("InvalidateBoundingShapeCache",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+
+        m?.Invoke(confiner, null);
+    }
+
+
     void OnEliteStart()
     {
-        if (cam != null) camBasePos = cam.transform.position;
+        Debug.Log("[ElitePresentation] OnEliteStart");
+
+        // Elite başlarken kaydet (oyuncu takipteyken)
+        originalFollow = vcam.Follow;
+        originalLookAt = vcam.LookAt;
+        originalPriority = vcam.Priority;
+
+        // Elite zoom
+        vcam.Lens.OrthographicSize = eliteOrthoSize;
+
 
         // arena shrink + kararma + zoom + küçük shake (giriş vurucu olsun)
         StartArenaScale(eliteScale);
         StartOverlay(eliteOverlayAlpha);
-        StartCameraZoom(eliteOrthoSize);
-        StartShake(shakeDuration, shakeStrength);
+        // StartCameraZoom(eliteOrthoSize);
+        StartNoiseShake(shakeDuration, shakeStrength);
+        InvalidateConfiner();
     }
 
     void OnEliteEnd()
     {
-        // combat'a geri
+        Debug.Log("[ElitePresentation] OnEliteEnd");
+
         StartArenaScale(combatScale);
         StartOverlay(0f);
-        StartCameraZoom(combatOrthoSize);
+
+        if (vcam == null) return;
+
+        // ✅ Follow'u kesin player'a döndür
+        Transform followTarget = (cameraFollowTarget != null) ? cameraFollowTarget : originalFollow;
+        vcam.Follow = followTarget;
+        vcam.LookAt = originalLookAt;
+        vcam.Priority = originalPriority;
+        vcam.Lens.OrthographicSize = combatOrthoSize;
+
+        // ✅ shake kapat
+        if (noiseRoutine != null)
+        {
+            StopCoroutine(noiseRoutine);
+            noiseRoutine = null;
+        }
+        if (noise != null) noise.AmplitudeGain = 0f;
 
         if (bossHpUI != null) bossHpUI.Hide();
+
+        InvalidateConfiner();
     }
 
     void OnFinalEnemySpawned(Enemy e)
@@ -122,7 +217,12 @@ public class ElitePresentation : MonoBehaviour
         }
 
         arenaVisualRoot.localScale = target;
+
+        // ✅ confiner bounds değiştiyse cache'i yenile
+        InvalidateConfiner();
+
         arenaRoutine = null;
+
     }
 
     void StartOverlay(float targetA)
@@ -152,53 +252,71 @@ public class ElitePresentation : MonoBehaviour
         overlayRoutine = null;
     }
 
-    void StartCameraZoom(float targetSize)
+    // void StartCameraZoom(float targetSize)
+    // {
+    //     if (cam == null || !cam.orthographic) return;
+    //     if (camRoutine != null) StopCoroutine(camRoutine);
+    //     camRoutine = StartCoroutine(CameraZoomRoutine(targetSize));
+    // }
+
+    // IEnumerator CameraZoomRoutine(float targetSize)
+    // {
+    //     float start = cam.orthographicSize;
+    //     float t = 0f;
+
+    //     while (t < camZoomDuration)
+    //     {
+    //         t += Time.unscaledDeltaTime;
+    //         float a = Mathf.Clamp01(t / camZoomDuration);
+    //         cam.orthographicSize = Mathf.Lerp(start, targetSize, a);
+    //         yield return null;
+    //     }
+
+    //     cam.orthographicSize = targetSize;
+    //     camRoutine = null;
+    // }
+
+    private void StartNoiseShake(float dur, float amp)
     {
-        if (cam == null || !cam.orthographic) return;
-        if (camRoutine != null) StopCoroutine(camRoutine);
-        camRoutine = StartCoroutine(CameraZoomRoutine(targetSize));
+        if (noise == null) return;
+        if (noiseRoutine != null) StopCoroutine(noiseRoutine);
+        noiseRoutine = StartCoroutine(NoiseShakeRoutine(dur, amp));
     }
 
-    IEnumerator CameraZoomRoutine(float targetSize)
+    private IEnumerator NoiseShakeRoutine(float dur, float amp)
     {
-        float start = cam.orthographicSize;
-        float t = 0f;
-
-        while (t < camZoomDuration)
-        {
-            t += Time.unscaledDeltaTime;
-            float a = Mathf.Clamp01(t / camZoomDuration);
-            cam.orthographicSize = Mathf.Lerp(start, targetSize, a);
-            yield return null;
-        }
-
-        cam.orthographicSize = targetSize;
-        camRoutine = null;
+        noise.AmplitudeGain = amp;
+        yield return new WaitForSecondsRealtime(dur);
+        noise.AmplitudeGain = 0f;
+        noiseRoutine = null;
     }
 
-    void StartShake(float dur, float str)
-    {
-        if (cam == null) return;
+    // void StartShake(float dur, float str)
+    // {
+    //     if (cam == null) return;
 
-        // ✅ en kritik satır: o anki kamerayı baz al
-        camBasePos = cam.transform.position;
+    //     // ✅ local baz al (parent varsa world bozmaz)
+    //     camBaseLocalPos = cam.transform.localPosition;
 
-        if (shakeRoutine != null) StopCoroutine(shakeRoutine);
-        shakeRoutine = StartCoroutine(ShakeRoutine(dur, str));
-    }
+    //     if (shakeRoutine != null) StopCoroutine(shakeRoutine);
+    //     shakeRoutine = StartCoroutine(ShakeRoutine(dur, str));
+    // }
 
 
-    IEnumerator ShakeRoutine(float dur, float str)
-    {
-        float t = 0f;
-        while (t < dur)
-        {
-            t += Time.unscaledDeltaTime;
-            Vector2 r = Random.insideUnitCircle * str;
-            cam.transform.position = camBasePos + new Vector3(r.x, r.y, 0f);
-            yield return null;
-        }
-        cam.transform.position = camBasePos;
-        shakeRoutine = null;
-    }
+    // IEnumerator ShakeRoutine(float dur, float str)
+    // {
+    //     float t = 0f;
+
+    //     while (t < dur)
+    //     {
+    //         t += Time.unscaledDeltaTime;
+    //         Vector2 r = Random.insideUnitCircle * str;
+
+    //         cam.transform.localPosition = camBaseLocalPos + new Vector3(r.x, r.y, 0f);
+    //         yield return null;
+    //     }
+
+    //     cam.transform.localPosition = camBaseLocalPos;
+    //     shakeRoutine = null;
+    // }
 }
