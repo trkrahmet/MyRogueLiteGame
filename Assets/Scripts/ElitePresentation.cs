@@ -20,6 +20,8 @@ public class ElitePresentation : MonoBehaviour
     private Transform originalLookAt;
     private int originalPriority;
     private float originalOrtho;
+    private Vector3 initialArenaScale;
+
 
     private Coroutine noiseRoutine;
 
@@ -43,7 +45,7 @@ public class ElitePresentation : MonoBehaviour
     [Header("Camera FX")]
     [SerializeField] private Camera cam;
     // [SerializeField] private float combatOrthoSize = 6.5f;
-    [SerializeField] private float eliteOrthoSize = 5.2f;
+    // [SerializeField] private float eliteOrthoSize = 5.2f;
     // [SerializeField] private float camZoomDuration = 0.45f;
     [SerializeField] private float shakeDuration = 0.25f;
     [SerializeField] private float shakeStrength = 0.12f;
@@ -60,6 +62,9 @@ public class ElitePresentation : MonoBehaviour
         if (gm == null) gm = FindFirstObjectByType<GameManager>();
         if (spawner == null) spawner = FindFirstObjectByType<EnemySpawner>();
         if (cam == null) cam = Camera.main;
+        if (arenaVisualRoot != null)
+            initialArenaScale = arenaVisualRoot.localScale;
+
 
         if (vcam != null)
         {
@@ -70,11 +75,12 @@ public class ElitePresentation : MonoBehaviour
             originalLookAt = vcam.LookAt;
             originalPriority = vcam.Priority;
             originalOrtho = vcam.Lens.OrthographicSize;
+            combatOrthoSize = vcam.Lens.OrthographicSize;
         }
 
         // Eğer inspector'da combatOrthoSize girmediysen otomatik al
-        if (combatOrthoSize <= 0f)
-            combatOrthoSize = vcam.Lens.OrthographicSize;
+        // if (combatOrthoSize <= 0f)
+        //     combatOrthoSize = vcam.Lens.OrthographicSize;
 
 
         if (cam != null)
@@ -135,7 +141,8 @@ public class ElitePresentation : MonoBehaviour
 
     void OnEliteStart()
     {
-        Debug.Log("[ElitePresentation] OnEliteStart");
+        // Debug.Log($"[ElitePresentation] OnEliteStart | vcamOrtho={GetOrtho()}");
+        Debug.Log($"[ElitePresentation] vcam name={vcam.name} priority={vcam.Priority} enabled={vcam.enabled}");
 
         // Elite başlarken kaydet (oyuncu takipteyken)
         originalFollow = vcam.Follow;
@@ -143,11 +150,16 @@ public class ElitePresentation : MonoBehaviour
         originalPriority = vcam.Priority;
 
         // Elite zoom
-        vcam.Lens.OrthographicSize = eliteOrthoSize;
+        // SetOrtho(eliteOrthoSize);
 
+        // eliteScale artık "multiplier" gibi çalışsın
+        Vector3 eliteTarget = new Vector3(
+            initialArenaScale.x * eliteScale.x,
+            initialArenaScale.y * eliteScale.y,
+            initialArenaScale.z * eliteScale.z
+        );
+        StartArenaScale(eliteTarget);
 
-        // arena shrink + kararma + zoom + küçük shake (giriş vurucu olsun)
-        StartArenaScale(eliteScale);
         StartOverlay(eliteOverlayAlpha);
         // StartCameraZoom(eliteOrthoSize);
         StartNoiseShake(shakeDuration, shakeStrength);
@@ -156,9 +168,11 @@ public class ElitePresentation : MonoBehaviour
 
     void OnEliteEnd()
     {
-        Debug.Log("[ElitePresentation] OnEliteEnd");
+        // Debug.Log($"[ElitePresentation] OnEliteStart | vcamOrtho={GetOrtho()}");
+        Debug.Log($"[ElitePresentation] vcam name={vcam.name} priority={vcam.Priority} enabled={vcam.enabled}");
 
-        StartArenaScale(combatScale);
+        StartArenaScale(initialArenaScale);
+
         StartOverlay(0f);
 
         if (vcam == null) return;
@@ -168,7 +182,7 @@ public class ElitePresentation : MonoBehaviour
         vcam.Follow = followTarget;
         vcam.LookAt = originalLookAt;
         vcam.Priority = originalPriority;
-        vcam.Lens.OrthographicSize = combatOrthoSize;
+        SetOrtho(combatOrthoSize);
 
         // ✅ shake kapat
         if (noiseRoutine != null)
@@ -179,6 +193,12 @@ public class ElitePresentation : MonoBehaviour
         if (noise != null) noise.AmplitudeGain = 0f;
 
         if (bossHpUI != null) bossHpUI.Hide();
+
+        // Debug.Log($"[ElitePresentation] After Restore | vcamOrtho={GetOrtho()} combatOrthoSize={combatOrthoSize}");
+        var cams = FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None);
+        foreach (var c in cams)
+            Debug.Log($"[CM Cam] {c.name} prio={c.Priority} enabled={c.enabled} ortho={c.Lens.OrthographicSize}");
+
 
         InvalidateConfiner();
     }
@@ -319,4 +339,18 @@ public class ElitePresentation : MonoBehaviour
     //     cam.transform.localPosition = camBaseLocalPos;
     //     shakeRoutine = null;
     // }
+
+    private void SetOrtho(float size)
+    {
+        if (vcam == null) return;
+        var lens = vcam.Lens;          // struct kopyası
+        lens.OrthographicSize = size;  // değiştir
+        vcam.Lens = lens;              // geri yaz (kritik)
+    }
+
+    private float GetOrtho()
+    {
+        return vcam != null ? vcam.Lens.OrthographicSize : -1f;
+    }
+
 }

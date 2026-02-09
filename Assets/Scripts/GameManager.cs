@@ -7,6 +7,7 @@ public class GameManager : MonoBehaviour
     {
         Combat,
         Elite,
+        ChestReward,
         Upgrade,
         Shop
         // Boss state’i Adım 3’te buraya ekleyeceğiz
@@ -18,6 +19,14 @@ public class GameManager : MonoBehaviour
 
     [Header("Gold Settings")]
     [SerializeField] private float goldGrowthPerWave = 0.12f; // her wave %12 artış
+
+    [Header("Elite Chest Reward")]
+    [SerializeField] private GameObject eliteChestPrefab;
+    [SerializeField] private float chestSpawnDelay = 0.35f;
+
+    private Vector3 lastEliteDeathPos;
+    private RewardChest activeChest;
+
 
     private bool transitionLocked = false;
     private Coroutine transitionRoutine;
@@ -129,10 +138,12 @@ public class GameManager : MonoBehaviour
         // 3) Elite fazındaysa final enemy öldü say
         if (state == WaveState.Elite)
         {
+            if (e != null) lastEliteDeathPos = e.transform.position; // ✅ pozisyonu kaydet
             eliteAlive = false;
             RefreshUI();
             return;
         }
+
     }
 
     private void GiveGoldForEnemy(Enemy e)
@@ -342,7 +353,7 @@ public class GameManager : MonoBehaviour
             yield break;
         }
 
-        EndElite_Success(); // burada zaten GoToIntermission() -> Time.timeScale=0 var
+        EnterChestReward();   // burada zaten GoToIntermission() -> Time.timeScale=0 var
         transitionLocked = false;
     }
 
@@ -476,6 +487,10 @@ public class GameManager : MonoBehaviour
 
         else if (state == WaveState.Elite)
             timerText.text = $"ELITE: {Mathf.CeilToInt(eliteTimer)}s";
+            
+        else if (state == WaveState.ChestReward)
+            timerText.text = "Open the chest!";
+
         else
             timerText.text = "Shop";
     }
@@ -510,4 +525,56 @@ public class GameManager : MonoBehaviour
     //     currentKills++;
     //     RefreshUI();
     // }
+
+    private void EnterChestReward()
+    {
+        // Elite sunumu bitsin (overlay/arena/boss ui kapansın)
+        OnEliteEnded?.Invoke();
+
+        currentEliteEnemy = null;
+        player.ResetVisualState();
+
+        SetState(WaveState.ChestReward);
+
+        // oyun devam etsin, chest animasyonu gözüksün
+        Time.timeScale = 1f;
+        healthUI?.SetVisible(true);
+
+        if (transitionRoutine != null) StopCoroutine(transitionRoutine);
+        transitionRoutine = StartCoroutine(Co_SpawnChest());
+    }
+
+    private System.Collections.IEnumerator Co_SpawnChest()
+    {
+        yield return new WaitForSeconds(chestSpawnDelay);
+
+        if (eliteChestPrefab == null)
+        {
+            // chest yoksa direkt intermission'a geç
+            GoToIntermission();
+            yield break;
+        }
+
+        var go = Instantiate(eliteChestPrefab, lastEliteDeathPos, Quaternion.identity);
+        activeChest = go.GetComponent<RewardChest>();
+
+        if (activeChest != null)
+            activeChest.Init(this);
+        else
+            Debug.LogWarning("Elite chest prefab has no RewardChest component!");
+    }
+    public void OnChestOpened()
+    {
+        // burada ileride: item drop + commit ödül animasyonu
+        // şimdilik: chest açıldı → intermission
+
+        if (activeChest != null)
+        {
+            Destroy(activeChest.gameObject, 0.1f);
+            activeChest = null;
+        }
+
+        GoToIntermission(); // ✅ Upgrade/Shop akışı buradan devam eder
+    }
+
 }

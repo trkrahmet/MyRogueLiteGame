@@ -36,7 +36,7 @@ public class Enemy : MonoBehaviour
     public int CurrentMaxHp => _scaledMaxHp;
 
     private int _scaledMaxHp;
-    public event System.Action<int, int> OnHealthChanged;
+    public event Action<int, int> OnHealthChanged;
 
 
     void Start()
