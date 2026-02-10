@@ -18,7 +18,7 @@ TagManager:
   - Enemy
   - Bullet
   - Background
-  - 
+  - Interactable
   - 
   - 
   - 
@@ -55,6 +55,9 @@ TagManager:
     locked: 0
   - name: Player
     uniqueID: 4157103697
+    locked: 0
+  - name: Chest
+    uniqueID: 3748439329
     locked: 0
   m_RenderingLayers:
   - Default

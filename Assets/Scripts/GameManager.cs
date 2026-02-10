@@ -23,9 +23,10 @@ public class GameManager : MonoBehaviour
     [Header("Elite Chest Reward")]
     [SerializeField] private GameObject eliteChestPrefab;
     [SerializeField] private float chestSpawnDelay = 0.35f;
-
-    private Vector3 lastEliteDeathPos;
+    [SerializeField] private ChestRewardPanel chestRewardPanel;
     private RewardChest activeChest;
+    private ShopPanel.ChestOfferData chestOffer;
+    private Vector3 lastEliteDeathPos;
 
 
     private bool transitionLocked = false;
@@ -63,6 +64,8 @@ public class GameManager : MonoBehaviour
 
 
     private float waveTimer;
+
+
 
     [Header("References")]
     public EnemySpawner spawner;
@@ -138,12 +141,11 @@ public class GameManager : MonoBehaviour
         // 3) Elite fazındaysa final enemy öldü say
         if (state == WaveState.Elite)
         {
-            if (e != null) lastEliteDeathPos = e.transform.position; // ✅ pozisyonu kaydet
+            if (e != null) lastEliteDeathPos = e.transform.position;
             eliteAlive = false;
             RefreshUI();
             return;
         }
-
     }
 
     private void GiveGoldForEnemy(Enemy e)
@@ -343,20 +345,40 @@ public class GameManager : MonoBehaviour
 
     private System.Collections.IEnumerator Co_EndEliteSuccessAfterDelay()
     {
-        // Boss öldü → oyuncu XP/loot toplasın (oyun durmasın)
         yield return new WaitForSeconds(preUpgradeDelay);
 
-        // Bu süre içinde state değiştiyse iptal
-        if (state != WaveState.Elite)
-        {
-            transitionLocked = false;
-            yield break;
-        }
+        if (state != WaveState.Elite) { transitionLocked = false; yield break; }
 
-        EnterChestReward();   // burada zaten GoToIntermission() -> Time.timeScale=0 var
+        SpawnChestReward();   // ✅ yeni
         transitionLocked = false;
     }
 
+    private void SpawnChestReward()
+    {
+        OnEliteEnded?.Invoke();
+        currentEliteEnemy = null;
+        player.ResetVisualState();
+
+        if (eliteChestPrefab == null)
+        {
+            GoToIntermission();
+            return;
+        }
+
+        var go = Instantiate(eliteChestPrefab, lastEliteDeathPos, Quaternion.identity);
+        activeChest = go.GetComponent<RewardChest>();
+        if (activeChest != null) activeChest.Init(this);
+
+        // ✅ ödülü shop havuzundan çek
+        chestOffer = shopPanel.RollChestOffer(allowWeapons: false);
+
+        // ✅ FX için rarity index’i chest’e ver
+        if (activeChest != null)
+            activeChest.SetRarityIndex(chestOffer.rarityIndex);
+
+        // (Opsiyonel) UI panel arkaplan rengi için saklamak istersen:
+        // cachedChestRarityColor = shopPanel.GetRarityColorByIndex(chestOffer.rarityIndex);
+    }
 
     private void EndElite_Success()
     {
@@ -487,7 +509,7 @@ public class GameManager : MonoBehaviour
 
         else if (state == WaveState.Elite)
             timerText.text = $"ELITE: {Mathf.CeilToInt(eliteTimer)}s";
-            
+
         else if (state == WaveState.ChestReward)
             timerText.text = "Open the chest!";
 
@@ -563,18 +585,56 @@ public class GameManager : MonoBehaviour
         else
             Debug.LogWarning("Elite chest prefab has no RewardChest component!");
     }
+
     public void OnChestOpened()
     {
-        // burada ileride: item drop + commit ödül animasyonu
-        // şimdilik: chest açıldı → intermission
-
-        if (activeChest != null)
+        if (chestRewardPanel == null)
         {
-            Destroy(activeChest.gameObject, 0.1f);
-            activeChest = null;
+            GoToIntermission();
+            return;
         }
 
-        GoToIntermission(); // ✅ Upgrade/Shop akışı buradan devam eder
+        // Panel açılınca oyunu durduralım (UI rahat)
+        Time.timeScale = 0f;
+
+        int sellValue = shopPanel.GetSellValue(chestOffer);
+        Color rarityColor = shopPanel.GetRarityColorByIndex(chestOffer.rarityIndex);
+
+        bool canTake = true;
+        if (chestOffer.isWeapon && player != null)
+            canTake = player.HasFreeWeaponSlot();
+
+        chestRewardPanel.Show(
+            chestOffer,
+            rarityColor,
+            sellValue,
+            canTake,
+            onTake: () =>
+            {
+                bool ok = shopPanel.ApplyChestOffer(chestOffer);
+                if (!ok)
+                {
+                    // silah slotu yoksa vs: direkt sat
+                    player.AddGold(sellValue);
+                }
+                CloseChestAndContinue();
+            },
+            onSell: () =>
+            {
+                player.AddGold(sellValue);
+                CloseChestAndContinue();
+            }
+        );
     }
 
+    private void CloseChestAndContinue()
+    {
+        chestRewardPanel.Hide();
+
+        if (activeChest != null) Destroy(activeChest.gameObject);
+        activeChest = null;
+
+        // intermission normal akış
+        GoToIntermission();
+    }
 }

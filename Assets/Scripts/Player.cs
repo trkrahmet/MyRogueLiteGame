@@ -748,6 +748,15 @@ public class Player : MonoBehaviour
         });
     }
 
+    public bool HasFreeWeaponSlot()
+    {
+        for (int i = 0; i < weaponSlots.Count; i++)
+            if (!weaponSlots[i].isActive)
+                return true;
+
+        return false;
+    }
+
     private void OnDisable() => ResetVisualState();
     private void OnEnable() => ResetVisualState();
 }

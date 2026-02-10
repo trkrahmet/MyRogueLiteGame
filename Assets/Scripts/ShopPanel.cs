@@ -69,6 +69,20 @@ public class ShopPanel : MonoBehaviour
         public Rarity rarity; // ✅ EKLE
     }
 
+    [Serializable]
+    public struct ChestOfferData
+    {
+        public bool isWeapon;
+        public Player.WeaponType weaponType;
+
+        public int statItemIndex;   // stat item ise
+        public int cost;
+
+        public int rarityIndex;     // (int)Rarity
+        public string title;
+        public string desc;
+        public Sprite icon;
+    }
 
     // -------------------- REFS --------------------
 
@@ -600,5 +614,74 @@ public class ShopPanel : MonoBehaviour
         }
         return -1;
     }
+    
+    public ChestOfferData RollChestOffer(bool allowWeapons = false, float weaponChance = 0.20f)
+    {
+        // Offer üret (senin mevcut roll sistemini aynen kullanıyoruz)
+        Offer o;
 
+        bool wantWeapon = allowWeapons && (UnityEngine.Random.value < weaponChance);
+        o = wantWeapon ? RollWeaponOffer() : RollStatItemOffer();
+
+        ChestOfferData data = new ChestOfferData();
+        data.isWeapon = (o.type == OfferType.Weapon);
+        data.weaponType = o.weaponType;
+        data.statItemIndex = o.statItemIndex;
+
+        data.rarityIndex = (int)o.rarity;
+
+        // cost/title/desc/icon resolve
+        if (data.isWeapon)
+        {
+            data.cost = o.cost;
+            data.title = $"{o.weaponType}";
+            data.desc = "Weapon";
+            data.icon = OfferToIcon(o);
+        }
+        else
+        {
+            if (statItemPool == null || o.statItemIndex < 0 || o.statItemIndex >= statItemPool.Length)
+            {
+                data.cost = 10;
+                data.title = "Item";
+                data.desc = "";
+                data.icon = defaultIcon;
+            }
+            else
+            {
+                var def = statItemPool[o.statItemIndex];
+                data.cost = Mathf.Max(1, def.cost);
+                data.title = def.title;
+                data.desc = def.desc;
+                data.icon = def.icon != null ? def.icon : defaultIcon;
+            }
+        }
+
+        return data;
+    }
+
+    public bool ApplyChestOffer(ChestOfferData data)
+    {
+        if (player == null) return false;
+
+        if (data.isWeapon)
+        {
+            return player.TryAddWeapon(data.weaponType);
+        }
+        else
+        {
+            return ApplyStatItem(data.statItemIndex);
+        }
+    }
+
+    public int GetSellValue(ChestOfferData data)
+    {
+        return Mathf.Max(1, data.cost / 2);
+    }
+
+    public Color GetRarityColorByIndex(int rarityIndex)
+    {
+        rarityIndex = Mathf.Clamp(rarityIndex, 0, 4);
+        return GetRarityColor((Rarity)rarityIndex);
+    }
 }
