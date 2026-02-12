@@ -122,26 +122,26 @@ public class EnemySpawner : MonoBehaviour
     //     StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos, waveLevel));
     // }
 
-    public void SpawnFinalEnemyForWave(int waveLevel)
-    {
-        currentWaveLevel = waveLevel;
+    // public void SpawnFinalEnemyForWave(int waveLevel)
+    // {
+    //     currentWaveLevel = waveLevel;
 
-        GameObject prefab = PickBossPrefab(waveLevel);
-        if (prefab == null)
-        {
-            Debug.LogWarning("No boss prefab in pool!");
-            return;
-        }
+    //     GameObject prefab = PickBossPrefab(waveLevel);
+    //     if (prefab == null)
+    //     {
+    //         Debug.LogWarning("No boss prefab in pool!");
+    //         return;
+    //     }
 
-        Vector3 pos;
-        if (!TryGetPointNearPlayerInCamera(out pos, 4f, 7f, 1f))
-        {
-            Debug.LogWarning("No camera-safe spawn point!");
-            return;
-        }
+    //     Vector3 pos;
+    //     if (!TryGetPointNearPlayerInCamera(out pos, 4f, 7f, 1f))
+    //     {
+    //         Debug.LogWarning("No camera-safe spawn point!");
+    //         return;
+    //     }
 
-        StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos, waveLevel));
-    }
+    //     StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos, waveLevel));
+    // }
 
 
     public void SpawnFinalEnemyForWaveAtPosition(int waveLevel, Vector3 desiredPos)
@@ -248,13 +248,6 @@ public class EnemySpawner : MonoBehaviour
             float cycleSpd = 1f + cycle * 0.05f;
 
             e.InitForWave(waveLevel, baseHp * cycleHp, baseDmg * cycleDmg, baseSpd * cycleSpd);
-
-            if (e != null)
-                OnFinalEnemySpawned?.Invoke(e); // ✅ Boss UI buradan tetiklenecek
-
-
-            // İstersen Enemy scriptine bool ekleyip elite-kill’i ayırırsın:
-            // e.isFinalEnemy = true;
         }
     }
 
@@ -285,62 +278,60 @@ public class EnemySpawner : MonoBehaviour
         Instantiate(enemyBossPrefab, pos, Quaternion.identity);
     }
 
-    public void SpawnEliteEnemy()
-    {
-        // Burada karar: elite mi boss mu?
-        // Öneri: wave 10'da boss, diğerlerinde elite
-        GameObject prefab = (currentWaveLevel >= 10 && enemyBossPrefab != null)
-            ? enemyBossPrefab
-            : enemyElitePrefab;
+    // public void SpawnEliteEnemy()
+    // {
+    //     GameObject prefab = (currentWaveLevel >= 10 && enemyBossPrefab != null)
+    //         ? enemyBossPrefab
+    //         : enemyElitePrefab;
 
-        if (prefab == null)
-        {
-            Debug.LogWarning("SpawnEliteEnemy: elite/boss prefab missing!");
-            return;
-        }
+    //     if (prefab == null)
+    //     {
+    //         Debug.LogWarning("SpawnEliteEnemy: elite/boss prefab missing!");
+    //         return;
+    //     }
 
-        if (!TryGetRandomPointInArea(out Vector3 pos))
-        {
-            Debug.LogWarning("SpawnEliteEnemy: could not find spawn point in area!");
-            return;
-        }
+    //     if (!TryGetRandomPointInArea(out Vector3 pos))
+    //     {
+    //         Debug.LogWarning("SpawnEliteEnemy: could not find spawn point in area!");
+    //         return;
+    //     }
 
-        // warning ile spawnla (iptal etme yok, sadece oyuncu üstündeyse başka yere kaydır)
-        StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos));
-    }
+    //     // ✅ waveLevel overload'u kullan (event + scaling çalışsın)
+    //     StartCoroutine(SpawnSpecificWithTelegraph(prefab, pos, currentWaveLevel));
+    // }
 
-    private IEnumerator SpawnSpecificWithTelegraph(GameObject prefab, Vector3 pos)
-    {
-        GameObject warning = null;
-        if (spawnWarningPrefab != null)
-            warning = Instantiate(spawnWarningPrefab, pos, Quaternion.identity);
+    // private IEnumerator SpawnSpecificWithTelegraph(GameObject prefab, Vector3 pos)
+    // {
+    //     GameObject warning = null;
+    //     if (spawnWarningPrefab != null)
+    //         warning = Instantiate(spawnWarningPrefab, pos, Quaternion.identity);
 
-        float t = 0f;
-        while (t < telegraphDelay)
-        {
-            t += Time.deltaTime;
+    //     float t = 0f;
+    //     while (t < telegraphDelay)
+    //     {
+    //         t += Time.deltaTime;
 
-            // Elite/boss için: iptal etmeyelim, ama oyuncu üstüne geldiyse başka yere kaydır
-            if (playerTransform != null && Vector2.Distance(playerTransform.position, pos) < cancelDistance)
-            {
-                if (TryGetRandomPointInArea(out Vector3 newPos))
-                    pos = newPos;
-            }
+    //         // Elite/boss için: iptal etmeyelim, ama oyuncu üstüne geldiyse başka yere kaydır
+    //         if (playerTransform != null && Vector2.Distance(playerTransform.position, pos) < cancelDistance)
+    //         {
+    //             if (TryGetRandomPointInArea(out Vector3 newPos))
+    //                 pos = newPos;
+    //         }
 
-            yield return null;
-        }
+    //         yield return null;
+    //     }
 
-        if (warning != null) Destroy(warning);
+    //     if (warning != null) Destroy(warning);
 
-        // son güvenlik
-        if (playerTransform != null && Vector2.Distance(playerTransform.position, pos) < cancelDistance)
-        {
-            if (TryGetRandomPointInArea(out Vector3 newPos))
-                pos = newPos;
-        }
+    //     // son güvenlik
+    //     if (playerTransform != null && Vector2.Distance(playerTransform.position, pos) < cancelDistance)
+    //     {
+    //         if (TryGetRandomPointInArea(out Vector3 newPos))
+    //             pos = newPos;
+    //     }
 
-        Instantiate(prefab, pos, Quaternion.identity);
-    }
+    //     Instantiate(prefab, pos, Quaternion.identity);
+    // }
 
     void TrySpawnFromMapArea()
     {
@@ -429,12 +420,12 @@ public class EnemySpawner : MonoBehaviour
         Debug.Log($"Wave {waveLevel} settings applied");
     }
 
-    public void ResetSpawnerSettings()
-    {
-        spawnTimer = 0f;
+    // public void ResetSpawnerSettings()
+    // {
+    //     spawnTimer = 0f;
 
-        ApplyWaveSettings(gameManager.currentWaveLevel);
-    }
+    //     ApplyWaveSettings(gameManager.currentWaveLevel);
+    // }
 
     // void SpawnAtScreenEdge()
     // {
@@ -546,10 +537,10 @@ public class EnemySpawner : MonoBehaviour
         aliveEnemies.Clear();
     }
 
-    public bool AreAllEnemiesSpawned()
-    {
-        return spawnedThisWave >= spawnLimit;
-    }
+    // public bool AreAllEnemiesSpawned()
+    // {
+    //     return spawnedThisWave >= spawnLimit;
+    // }
 
     bool TryGetPointNearPlayerInCamera(out Vector3 point, float minDist, float maxDist, float margin = 1f)
     {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -22,6 +23,8 @@ public class Player : MonoBehaviour
         public float meleeRadius;    // vurma yarıçapı
         public int maxTargets;       // kaç hedef vurabilsin (0 = sınırsız)
         public float baseRange = 6f;
+        public int level = 1;              // 1..3
+        public int copiesTowardNext = 0;   // aynı silahı kaç kere daha aldık
     }
 
     [Serializable]
@@ -51,8 +54,25 @@ public class Player : MonoBehaviour
     [Header("Inventory (Read-only)")]
     public List<OwnedItem> ownedItems = new List<OwnedItem>();
 
+    [Header("Refs")]
+    [SerializeField] private SpriteRenderer sr;
+    [SerializeField] private Collider2D col;
+    [SerializeField] private Rigidbody2D rb;
     public Animator anim;
+
+    [Header("Disable these on death")]
+    [SerializeField] private MonoBehaviour[] controlScripts; // movement, shooting, etc.
+
+    [Header("Anim")]
+    [SerializeField] private float popTime = 0.12f;
+    [SerializeField] private float fadeTime = 0.25f;
+    [SerializeField] private float respawnFadeTime = 0.2f;
+    private GameManager gm;
     Vector2 lastMoveDir = Vector2.down; // varsayılan aşağı baksın
+
+    private Coroutine deathRoutine;
+    private Vector3 baseScale;
+    public bool IsDead { get; private set; }
 
     [SerializeField] private Color normalColor = Color.white;
 
@@ -76,7 +96,6 @@ public class Player : MonoBehaviour
     public float critMultiplier = 1.75f; // sabit (%75 extra)
 
     [Header("Movement")]
-    Rigidbody2D rb;
     Vector2 inputMove;
 
     [Header("Health")]
@@ -115,20 +134,23 @@ public class Player : MonoBehaviour
     public float luck = 0f;
 
     [Header("Hit Flash")]
-    [SerializeField] private SpriteRenderer spriteRenderer;
+    // [SerializeField] private SpriteRenderer sr;
     [SerializeField] private Color hitColor = Color.red;
     [SerializeField] private float hitFlashDuration = 0.08f;
 
 
     void Awake()
     {
-        anim = GetComponent<Animator>();
-        rb = GetComponent<Rigidbody2D>();
+        baseScale = transform.localScale;
+        if (col == null) col = GetComponent<Collider2D>();
+        if (anim == null) anim = GetComponent<Animator>();
+        if (rb == null) rb = GetComponent<Rigidbody2D>();
+        if (gm == null) gm = FindFirstObjectByType<GameManager>();
 
-        if (spriteRenderer == null)
-            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        if (sr == null)
+            sr = GetComponentInChildren<SpriteRenderer>();
 
-        normalColor = spriteRenderer != null ? spriteRenderer.color : Color.white;
+        normalColor = sr != null ? sr.color : Color.white;
 
         currentHp = maxHp;
         NotifyHealthUI();
@@ -216,9 +238,9 @@ public class Player : MonoBehaviour
 
         CancelInvoke();
 
-        if (spriteRenderer != null)
+        if (sr != null)
         {
-            spriteRenderer.color = normalColor;   // ana reset
+            sr.color = normalColor;   // ana reset
         }
     }
 
@@ -248,6 +270,12 @@ public class Player : MonoBehaviour
     }
 
     public void AddGold(int amount) => gold += amount;
+    public void AddXp(int amount)
+    {
+        if (amount <= 0) return;
+        currentXp += amount;
+        TryLevelUp();
+    }
 
     void InitWeaponSlots()
     {
@@ -355,9 +383,8 @@ public class Player : MonoBehaviour
     {
         if (other.CompareTag("XP"))
         {
-            currentXp += 1;
+            if (gm != null) gm.AddPendingXp(1);
             Destroy(other.gameObject);
-            TryLevelUp();
             return;
         }
 
@@ -408,7 +435,10 @@ public class Player : MonoBehaviour
 
     void Die()
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        if (gm == null) gm = FindFirstObjectByType<GameManager>();
+        if (gm != null) gm.OnPlayerDied();   // ✅ pending %50 commit burada yapılacak
+
+        // SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     void Fire(WeaponSlot slot)
@@ -708,7 +738,7 @@ public class Player : MonoBehaviour
 
     void PlayHitFlash()
     {
-        if (spriteRenderer == null) return;
+        if (sr == null) return;
 
         // Üst üste hit gelirse önceki flash'ı kes
         if (hitFlashRoutine != null)
@@ -718,20 +748,20 @@ public class Player : MonoBehaviour
         }
 
         // ✅ kritik: kırmızıda kalmışsa önce normale çek
-        spriteRenderer.color = normalColor;
+        sr.color = normalColor;
 
         hitFlashRoutine = StartCoroutine(HitFlashCoroutine());
     }
 
-    private System.Collections.IEnumerator HitFlashCoroutine()
+    private IEnumerator HitFlashCoroutine()
     {
-        spriteRenderer.color = hitColor;
+        sr.color = hitColor;
 
         // ✅ kritik: pause olsa bile bitsin (timescale 0 etkilenmez)
         yield return new WaitForSecondsRealtime(hitFlashDuration);
 
         // ✅ kritik: original değil, her zaman normale dön
-        spriteRenderer.color = normalColor;
+        sr.color = normalColor;
 
         hitFlashRoutine = null;
     }
@@ -755,6 +785,221 @@ public class Player : MonoBehaviour
                 return true;
 
         return false;
+    }
+
+    public void OnDeathVisual()
+    {
+        if (IsDead) return;
+        IsDead = true;
+
+        // Kontroller kapat
+        foreach (var s in controlScripts) if (s) s.enabled = false;
+
+        // Fizik/çarpışma kapat
+        if (col) col.enabled = false;
+        if (rb)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0f;
+            rb.simulated = false;
+        }
+
+        if (deathRoutine != null) StopCoroutine(deathRoutine);
+        deathRoutine = StartCoroutine(Co_DeathPopFade());
+    }
+
+    public void RespawnVisual(Vector3? position = null)
+    {
+        if (deathRoutine != null) StopCoroutine(deathRoutine);
+        deathRoutine = StartCoroutine(Co_Respawn(position));
+    }
+
+    private IEnumerator Co_DeathPopFade()
+    {
+        // Pop (scale up)
+        float t = 0f;
+        Vector3 start = baseScale;
+        Vector3 end = baseScale * 1.12f;
+
+        while (t < popTime)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / popTime);
+            transform.localScale = Vector3.Lerp(start, end, k);
+            yield return null;
+        }
+
+        // Fade out
+        t = 0f;
+        Color c = sr ? sr.color : Color.white;
+        float a0 = c.a;
+
+        while (t < fadeTime)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / fadeTime);
+            if (sr)
+            {
+                c.a = Mathf.Lerp(a0, 0f, k);
+                sr.color = c;
+            }
+            yield return null;
+        }
+
+        // Son durumda sabitle
+        transform.localScale = baseScale;
+        if (sr)
+        {
+            c.a = 0f;
+            sr.color = c;
+        }
+    }
+
+    private IEnumerator Co_Respawn(Vector3? position)
+    {
+        if (position.HasValue) transform.position = position.Value;
+
+        // Görünürlük reset
+        transform.localScale = baseScale * 0.92f;
+        if (sr)
+        {
+            var c = sr.color;
+            c.a = 0f;
+            sr.color = c;
+        }
+
+        // Fizik/çarpışma aç
+        if (rb) rb.simulated = true;
+        if (col) col.enabled = true;
+
+        // Fade in + scale
+        float t = 0f;
+        while (t < respawnFadeTime)
+        {
+            t += Time.unscaledDeltaTime;
+            float k = Mathf.Clamp01(t / respawnFadeTime);
+
+            transform.localScale = Vector3.Lerp(baseScale * 0.92f, baseScale, k);
+
+            if (sr)
+            {
+                var c = sr.color;
+                c.a = Mathf.Lerp(0f, 1f, k);
+                sr.color = c;
+            }
+            yield return null;
+        }
+
+        // Kontroller aç
+        foreach (var s in controlScripts) if (s) s.enabled = true;
+
+        IsDead = false;
+    }
+
+    public static int NeededCopiesForNext(int level)
+    {
+        // Senin planın: Lv1->Lv2 için 2, Lv2->Lv3 için 3
+        if (level == 1) return 2;
+        if (level == 2) return 3;
+        return -1; // max level
+    }
+
+    public bool TryAddOrUpgradeWeapon(WeaponType type)
+    {
+        if (type == WeaponType.None) return false;
+
+        // 1) Bu silah zaten var mı? (aktif slotlarda ara)
+        WeaponSlot existing = null;
+        for (int i = 0; i < weaponSlots.Count; i++)
+        {
+            var ws = weaponSlots[i];
+            if (ws != null && ws.isActive && ws.type == type)
+            {
+                existing = ws;
+                break;
+            }
+        }
+
+        // 2) Yoksa -> normal ekle (boş slot şart)
+        if (existing == null)
+            return TryAddWeapon(type);
+
+        // 3) Varsa -> upgrade progress
+        int needed = NeededCopiesForNext(existing.level);
+        if (needed <= 0)
+            return true; // zaten max level, kopya boşa gitmesin diye kabul ediyoruz
+
+        existing.copiesTowardNext++;
+
+        if (existing.copiesTowardNext >= needed)
+        {
+            existing.copiesTowardNext = 0;
+            existing.level++;
+
+            ApplyWeaponLevel(existing);  // statları güncelle
+        }
+
+        return true;
+    }
+
+    private void ApplyWeaponLevel(WeaponSlot slot)
+    {
+        // Level 1 baz değerlerini tekrar kur
+        WeaponSlot baseSlot = CreateDefaultWeapon(slot.type);
+
+        int lvl = Mathf.Clamp(slot.level, 1, 3);
+
+        // Base’i yaz (aktiflik/type/level/copy korunacak)
+        slot.interval = baseSlot.interval;
+        slot.damage = baseSlot.damage;
+        slot.pelletCount = baseSlot.pelletCount;
+        slot.spreadAngle = baseSlot.spreadAngle;
+        slot.meleeRange = baseSlot.meleeRange;
+        slot.meleeRadius = baseSlot.meleeRadius;
+        slot.maxTargets = baseSlot.maxTargets;
+        slot.baseRange = baseSlot.baseRange;
+
+        // Basit scaling (istersen sonra balanslarız)
+        int step = lvl - 1;
+        if (step <= 0) return;
+
+        switch (slot.type)
+        {
+            case WeaponType.Rifle:
+                slot.damage += 1 * step;
+                slot.interval *= (step == 1) ? 0.90f : 0.82f;
+                break;
+
+            case WeaponType.Shotgun:
+                slot.damage += 1 * step;
+                slot.pelletCount += 1 * step;
+                slot.interval *= (step == 1) ? 0.92f : 0.85f;
+                break;
+
+            case WeaponType.Sniper:
+                slot.damage += 2 * step;
+                slot.interval *= (step == 1) ? 0.92f : 0.86f;
+                break;
+
+            case WeaponType.Sword:
+                slot.damage += 1 * step;
+                slot.interval *= (step == 1) ? 0.92f : 0.85f;
+                break;
+
+            case WeaponType.Spear:
+                slot.damage += 1 * step;
+                slot.maxTargets = Mathf.Clamp(baseSlot.maxTargets + step, 1, 4);
+                slot.interval *= (step == 1) ? 0.93f : 0.87f;
+                break;
+
+            case WeaponType.Hammer:
+                slot.damage += 1 * step;
+                slot.interval *= (step == 1) ? 0.94f : 0.88f;
+                break;
+        }
+
+        // güvenlik
+        slot.interval = Mathf.Max(0.08f, slot.interval);
     }
 
     private void OnDisable() => ResetVisualState();

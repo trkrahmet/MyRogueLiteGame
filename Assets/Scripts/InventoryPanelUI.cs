@@ -69,8 +69,7 @@ public class InventoryPanelUI : MonoBehaviour
 
         if (player == null) return;
 
-        // ❌ BUNU KALDIR:
-        // ClearChildren(weaponsParent);
+
 
         // ✅ Item listesi dinamik olduğu için temizlenir
         ClearChildren(itemsParent);
@@ -88,6 +87,10 @@ public class InventoryPanelUI : MonoBehaviour
 
             var ws = player.weaponSlots[i];
 
+            int need = Player.NeededCopiesForNext(ws.level);
+            string prog = (need > 0) ? $" ({ws.copiesTowardNext}/{need})" : " (MAX)";
+            string label = $"{ws.type} Lv{ws.level}{prog}";
+
             if (!ws.isActive || ws.type == Player.WeaponType.None)
             {
                 weaponUI[i].SetEmpty();
@@ -99,6 +102,7 @@ public class InventoryPanelUI : MonoBehaviour
 
 
             weaponUI[i].SetWeapon(
+                label,
                 ws.type.ToString(),
                 icon,
                 ws.damage,

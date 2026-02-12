@@ -7,6 +7,9 @@ public class RewardChest : MonoBehaviour
     [SerializeField] private Animator chestAnimator;        // ChestSprite animator
     [SerializeField] private string openTrigger = "Open";
 
+    private bool notified;
+    private Collider2D col;
+
     [Header("Click")]
     [SerializeField] private LayerMask interactableMask;
 
@@ -34,6 +37,11 @@ public class RewardChest : MonoBehaviour
 
     public void SetRarityIndex(int idx) => rarityIndex = idx;
 
+    private void Awake()
+    {
+        col = GetComponent<Collider2D>();
+    }
+
     private void Update()
     {
         if (opened) return;
@@ -52,32 +60,38 @@ public class RewardChest : MonoBehaviour
         if (opened) return;
         opened = true;
 
+        if (col != null) col.enabled = false; // ✅ tekrar tıklanmasın
         chestAnimator?.SetTrigger(openTrigger);
-        // ❌ GM çağırma yok, anim bitince event gelecek
     }
+
 
     // Animation Event: Chest_Open clipinin sonunda çağır
     public void NotifyOpened()
     {
+        if (notified) return;   // ✅ event yanlışlıkla 2 kez gelirse de çalışmaz
+        notified = true;
+
         StartCoroutine(Co_OpenSequence());
     }
 
+
     private IEnumerator Co_OpenSequence()
     {
-        // Chest açıldıktan sonra minik “acaba?” duraksaması
+        // 1) chest açıldı -> mini “acaba?” duraksaması
         yield return new WaitForSecondsRealtime(suspenseDelayAfterOpen);
 
-        // FX oynat
+        // 2) FX oynat
         var frames = GetFramesForRarity();
         if (fxRenderer != null && frames != null && frames.Length > 0)
             yield return StartCoroutine(PlayFxFrames(frames));
 
-        // FX bittikten sonra “wow pause”
+        // 3) FX bittikten sonra kısa wow-pause
         yield return new WaitForSecondsRealtime(suspenseDelayAfterFx);
 
-        // Sonra panel
+        // 4) sonra panel
         gm?.OnChestOpened();
     }
+
 
 
     private Sprite[] GetFramesForRarity()
@@ -106,5 +120,28 @@ public class RewardChest : MonoBehaviour
         }
 
         fxRenderer.gameObject.SetActive(false);
+    }
+
+    private void OnEnable()
+    {
+        // Spawn olduğunda temiz başlangıç
+        opened = false;
+        notified = false;
+
+        if (col != null) col.enabled = true;
+
+        // FX her zaman kapalı başlasın (spawn bug'ını bu çözer)
+        if (fxRenderer != null)
+        {
+            fxRenderer.sprite = null;
+            fxRenderer.gameObject.SetActive(false);
+        }
+
+        // Animator state'i de temizle (bazen spawn'da tuhaf state ile gelir)
+        if (chestAnimator != null)
+        {
+            chestAnimator.Rebind();
+            chestAnimator.Update(0f);
+        }
     }
 }

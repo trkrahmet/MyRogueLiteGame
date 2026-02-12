@@ -29,6 +29,11 @@ public class TooltipManager : MonoBehaviour
         if (panel == null) panel = GetComponent<RectTransform>();
         rootCanvas = GetComponentInParent<Canvas>();
 
+        if (group != null)
+        {
+            group.interactable = false;
+            group.blocksRaycasts = false;
+        }
         Hide();
     }
 
@@ -45,16 +50,33 @@ public class TooltipManager : MonoBehaviour
             out pos
         );
 
-        float width = panel.rect.width;
-        Vector2 finalOffset = offset;
+        var canvasRect = rootCanvas.transform as RectTransform;
+        if (canvasRect == null) return;
 
-        // Eğer mouse ekranın sağ tarafındaysa tooltip sola geçsin
-        if (Input.mousePosition.x > Screen.width * 0.8f)
-        {
-            finalOffset.x = -width - 8f;
-        }
+        Vector2 desired = pos + offset;
 
-        panel.anchoredPosition = pos + finalOffset;
+        // Panel boyutu
+        float w = panel.rect.width;
+        float h = panel.rect.height;
+
+        // Panel pivotunu hesaba katarak bounds hesapla
+        float left = desired.x - panel.pivot.x * w;
+        float right = left + w;
+        float bottom = desired.y - panel.pivot.y * h;
+        float top = bottom + h;
+
+        // Canvas bounds (local)
+        var c = canvasRect.rect;
+        float pad = 8f;
+
+        // Taşma varsa içeri it (clamp)
+        if (right > c.xMax - pad) desired.x -= (right - (c.xMax - pad));
+        if (left < c.xMin + pad) desired.x += ((c.xMin + pad) - left);
+
+        if (top > c.yMax - pad) desired.y -= (top - (c.yMax - pad));
+        if (bottom < c.yMin + pad) desired.y += ((c.yMin + pad) - bottom);
+
+        panel.anchoredPosition = desired;
 
     }
 
@@ -62,6 +84,13 @@ public class TooltipManager : MonoBehaviour
     {
         if (showRoutine != null) StopCoroutine(showRoutine);
         showRoutine = StartCoroutine(ShowDelayed(title, body, icon));
+
+        // ✅ tooltip asla raycast bloklamasın
+        if (group != null)
+        {
+            group.interactable = false;
+            group.blocksRaycasts = false;
+        }
     }
 
     IEnumerator ShowDelayed(string title, string body, Sprite icon)
@@ -80,10 +109,15 @@ public class TooltipManager : MonoBehaviour
         group.alpha = 1f;
     }
 
-
     public void Hide()
     {
         if (showRoutine != null) StopCoroutine(showRoutine);
-        group.alpha = 0f;
+
+        if (group != null)
+        {
+            group.alpha = 0f;
+            group.interactable = false;
+            group.blocksRaycasts = false;
+        }
     }
 }

@@ -402,8 +402,8 @@ public class ShopPanel : MonoBehaviour
                 return ApplyStatItem(offer.statItemIndex);
 
             case OfferType.Weapon:
-                bool added = player.TryAddWeapon(offer.weaponType);
-                if (!added)
+                bool ok = player.TryAddOrUpgradeWeapon(offer.weaponType);
+                if (!ok)
                 {
                     Debug.Log("No empty weapon slot!");
                     return false;
@@ -614,7 +614,7 @@ public class ShopPanel : MonoBehaviour
         }
         return -1;
     }
-    
+
     public ChestOfferData RollChestOffer(bool allowWeapons = false, float weaponChance = 0.20f)
     {
         // Offer üret (senin mevcut roll sistemini aynen kullanıyoruz)

@@ -15,7 +15,7 @@ public class InventoryWeaponSlotUI : MonoBehaviour
         if (statsText != null) statsText.text = "";
     }
 
-    public void SetWeapon(string name, Sprite sprite, float dmg, float interval, float range)
+    public void SetWeapon(string label, string name, Sprite sprite, float dmg, float interval, float range)
     {
         if (icon != null)
         {
@@ -23,10 +23,13 @@ public class InventoryWeaponSlotUI : MonoBehaviour
             icon.enabled = sprite != null;
         }
 
+        if (nameText != null) nameText.text = label;
+        if (statsText != null) statsText.text = $"DMG:{dmg}  CD:{interval:0.00}  RNG:{range:0.0}";
+
         var tt = GetComponent<TooltipTrigger>();
         if (tt != null)
         {
-            tt.title = name;
+            tt.title = label;
             tt.body = $"Damage: {dmg}\nAttack Speed: {interval:0.00}\nRange: {range:0.0}";
             tt.icon = sprite;
         }
