@@ -3408,9 +3408,9 @@ MonoBehaviour:
   refreshCostPerWave: 1
   refreshCostIncrease: 2
   refreshCostMax: 999
-  rifleIcon: {fileID: 21300000, guid: 37596045455ad83479d38bb56a6719a6, type: 3}
-  shotgunIcon: {fileID: 21300000, guid: 8046abb8d861d2349bb20a9366607b3d, type: 3}
-  sniperIcon: {fileID: 21300000, guid: 8ef1293b32314e944b48907c6a2dad96, type: 3}
+  rifleIcon: {fileID: -2322290495975857618, guid: 37596045455ad83479d38bb56a6719a6, type: 3}
+  shotgunIcon: {fileID: -3862945514045057196, guid: 8046abb8d861d2349bb20a9366607b3d, type: 3}
+  sniperIcon: {fileID: 6301643005351834205, guid: 8ef1293b32314e944b48907c6a2dad96, type: 3}
   swordIcon: {fileID: -3753825769889500098, guid: 0ede9288d00c6904a8a1aa061b98b22c, type: 3}
   spearIcon: {fileID: 5018245360316724722, guid: ab6af31892b5d4b48a35edeff859eddb, type: 3}
   hammerIcon: {fileID: 4301844918096825189, guid: 1ece22ea1d9431d4b913d833ba024485, type: 3}
@@ -4669,9 +4669,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 341715785952299315, guid: f65244245a8d306459a9b324986b2501, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -5154,9 +5154,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: -6300632739162281397, guid: 0042d4cddb9f3a147a2a080625c6fa74, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -5803,12 +5803,24 @@ MonoBehaviour:
   secondWeapon: {fileID: 35822025}
   thirdWeapon: {fileID: 1298749671}
   fourthWeapon: {fileID: 1444828978}
-  rifleSprite: {fileID: 21300000, guid: 37596045455ad83479d38bb56a6719a6, type: 3}
-  shotgunSprite: {fileID: 21300000, guid: 8046abb8d861d2349bb20a9366607b3d, type: 3}
-  sniperSprite: {fileID: 21300000, guid: 8ef1293b32314e944b48907c6a2dad96, type: 3}
+  rifleSprite: {fileID: -2322290495975857618, guid: 37596045455ad83479d38bb56a6719a6, type: 3}
+  rifleLv2: {fileID: -2710081328735951113, guid: b07d4a3b08a22724f9b9b4ddcbd3b36b, type: 3}
+  rifleLv3: {fileID: 2290148148990110268, guid: c63f89efe1d89bc4a94d261860d9b7a1, type: 3}
+  shotgunSprite: {fileID: -3862945514045057196, guid: 8046abb8d861d2349bb20a9366607b3d, type: 3}
+  shotgunLv2: {fileID: 364358505273261762, guid: 47ded8faa9e4ba74f9e75a6a2ea739ce, type: 3}
+  shotgunLv3: {fileID: -3827219569668267421, guid: 9a5659bccf4dd9e4bab56bcf16cf1159, type: 3}
+  sniperSprite: {fileID: 6301643005351834205, guid: 8ef1293b32314e944b48907c6a2dad96, type: 3}
+  sniperLv2: {fileID: 4830186150160530957, guid: 228fbc84e8a02944c852b369bad8f006, type: 3}
+  sniperLv3: {fileID: 341715785952299315, guid: f65244245a8d306459a9b324986b2501, type: 3}
   swordSprite: {fileID: -3753825769889500098, guid: 0ede9288d00c6904a8a1aa061b98b22c, type: 3}
+  swordLv2: {fileID: 3251246076852293142, guid: 26fe03c8a26f7c04d8f717904734afe0, type: 3}
+  swordLv3: {fileID: 7758104872671413443, guid: b217d1bd46080714e86b45a84af90824, type: 3}
   spearSprite: {fileID: 5018245360316724722, guid: ab6af31892b5d4b48a35edeff859eddb, type: 3}
+  spearLv2: {fileID: -2457497091749578427, guid: 43bce0ec4fc13f94d963d5150df1b4fc, type: 3}
+  spearLv3: {fileID: -6300632739162281397, guid: 0042d4cddb9f3a147a2a080625c6fa74, type: 3}
   hammerSprite: {fileID: 4301844918096825189, guid: 1ece22ea1d9431d4b913d833ba024485, type: 3}
+  hammerLv2: {fileID: -3839771882759163799, guid: 687d252f05ddc1140a2d2c700dae2969, type: 3}
+  hammerLv3: {fileID: 1197724149102268827, guid: 9b568d20d088ff7478f5794da0ecda0a, type: 3}
   entryPrefab: {fileID: 2122353013454308312, guid: eb31e09d21a958247b49fb11e728401e, type: 3}
 --- !u!225 &862020809
 CanvasGroup:
@@ -6632,9 +6644,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: -2322290495975857618, guid: 37596045455ad83479d38bb56a6719a6, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -6861,9 +6873,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 4830186150160530957, guid: 228fbc84e8a02944c852b369bad8f006, type: 3}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -9078,7 +9090,7 @@ MonoBehaviour:
   titleText: {fileID: 1775847165}
   bodyText: {fileID: 120789803}
   iconImage: {fileID: 0}
-  offset: {x: 10, y: 16}
+  offset: {x: 300, y: -20}
   showDelay: 0.15
 --- !u!1 &1444828974
 GameObject:

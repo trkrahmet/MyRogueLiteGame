@@ -41,35 +41,35 @@ public class TooltipManager : MonoBehaviour
     {
         if (group == null || group.alpha <= 0f) return;
 
-        // Tooltip mouse'u takip etsin (UI canvas space'e göre)
-        Vector2 pos;
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            rootCanvas.transform as RectTransform,
-            Input.mousePosition,
-            rootCanvas.worldCamera,
-            out pos
-        );
-
-        var canvasRect = rootCanvas.transform as RectTransform;
+        RectTransform canvasRect = rootCanvas.transform as RectTransform;
         if (canvasRect == null) return;
 
-        Vector2 desired = pos + offset;
+        // Mouse'u canvas local space'e çevir
+        Vector2 localMouse;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvasRect,
+            Input.mousePosition,
+            rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : rootCanvas.worldCamera,
+            out localMouse
+        );
+
+        // ✅ Offset'i burada ekle (clamp'ten ÖNCE)
+        Vector2 desired = localMouse + offset;
 
         // Panel boyutu
         float w = panel.rect.width;
         float h = panel.rect.height;
 
-        // Panel pivotunu hesaba katarak bounds hesapla
+        // Panel pivotuna göre gerçek kenarlar
         float left = desired.x - panel.pivot.x * w;
         float right = left + w;
         float bottom = desired.y - panel.pivot.y * h;
         float top = bottom + h;
 
-        // Canvas bounds (local)
-        var c = canvasRect.rect;
+        Rect c = canvasRect.rect;
         float pad = 8f;
 
-        // Taşma varsa içeri it (clamp)
+        // ✅ Clamp (taşarsa içeri it)
         if (right > c.xMax - pad) desired.x -= (right - (c.xMax - pad));
         if (left < c.xMin + pad) desired.x += ((c.xMin + pad) - left);
 
@@ -77,8 +77,8 @@ public class TooltipManager : MonoBehaviour
         if (bottom < c.yMin + pad) desired.y += ((c.yMin + pad) - bottom);
 
         panel.anchoredPosition = desired;
-
     }
+
 
     public void Show(string title, string body, Sprite icon = null)
     {

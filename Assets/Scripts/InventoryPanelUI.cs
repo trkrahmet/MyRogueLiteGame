@@ -20,13 +20,30 @@ public class InventoryPanelUI : MonoBehaviour
     [SerializeField] private InventoryWeaponSlotUI thirdWeapon;
     [SerializeField] private InventoryWeaponSlotUI fourthWeapon;
 
-    [Header("Weapon Icons")]
+    [Header("Weapon Icons (Inventory - Per Level)")]
     [SerializeField] private Sprite rifleSprite;
+    [SerializeField] private Sprite rifleLv2;
+    [SerializeField] private Sprite rifleLv3;
+
     [SerializeField] private Sprite shotgunSprite;
+    [SerializeField] private Sprite shotgunLv2;
+    [SerializeField] private Sprite shotgunLv3;
+
     [SerializeField] private Sprite sniperSprite;
+    [SerializeField] private Sprite sniperLv2;
+    [SerializeField] private Sprite sniperLv3;
+
     [SerializeField] private Sprite swordSprite;
+    [SerializeField] private Sprite swordLv2;
+    [SerializeField] private Sprite swordLv3;
+
     [SerializeField] private Sprite spearSprite;
+    [SerializeField] private Sprite spearLv2;
+    [SerializeField] private Sprite spearLv3;
+
     [SerializeField] private Sprite hammerSprite;
+    [SerializeField] private Sprite hammerLv2;
+    [SerializeField] private Sprite hammerLv3;
 
     private InventoryWeaponSlotUI[] weaponUI;
 
@@ -97,8 +114,9 @@ public class InventoryPanelUI : MonoBehaviour
                 continue;
             }
 
-            Sprite icon = GetWeaponIcon(ws.type);
-            Debug.Log($"[InvWeapon] slot{i} type={ws.type} iconNull={(GetWeaponIcon(ws.type) == null)} active={ws.isActive}");
+            Sprite icon = GetWeaponIcon(ws.type, ws.level);
+
+            Debug.Log($"[InvWeapon] slot{i} type={ws.type} iconNull={(GetWeaponIcon(ws.type, ws.level) == null)} active={ws.isActive}");
 
 
             weaponUI[i].SetWeapon(
@@ -126,17 +144,44 @@ public class InventoryPanelUI : MonoBehaviour
             Destroy(t.GetChild(i).gameObject);
     }
 
-    private Sprite GetWeaponIcon(Player.WeaponType type)
+    private Sprite GetWeaponIcon(Player.WeaponType type, int level)
     {
-        return type switch
+        level = Mathf.Clamp(level, 1, 3);
+
+        switch (type)
         {
-            Player.WeaponType.Rifle => rifleSprite,
-            Player.WeaponType.Shotgun => shotgunSprite,
-            Player.WeaponType.Sniper => sniperSprite,
-            Player.WeaponType.Sword => swordSprite,
-            Player.WeaponType.Spear => spearSprite,
-            Player.WeaponType.Hammer => hammerSprite,
-            _ => null
-        };
+            case Player.WeaponType.Rifle:
+                return level == 3 ? (rifleLv3 != null ? rifleLv3 : rifleSprite)
+                     : level == 2 ? (rifleLv2 != null ? rifleLv2 : rifleSprite)
+                     : rifleSprite;
+
+            case Player.WeaponType.Shotgun:
+                return level == 3 ? (shotgunLv3 != null ? shotgunLv3 : shotgunSprite)
+                     : level == 2 ? (shotgunLv2 != null ? shotgunLv2 : shotgunSprite)
+                     : shotgunSprite;
+
+            case Player.WeaponType.Sniper:
+                return level == 3 ? (sniperLv3 != null ? sniperLv3 : sniperSprite)
+                     : level == 2 ? (sniperLv2 != null ? sniperLv2 : sniperSprite)
+                     : sniperSprite;
+
+            case Player.WeaponType.Sword:
+                return level == 3 ? (swordLv3 != null ? swordLv3 : swordSprite)
+                     : level == 2 ? (swordLv2 != null ? swordLv2 : swordSprite)
+                     : swordSprite;
+
+            case Player.WeaponType.Spear:
+                return level == 3 ? (spearLv3 != null ? spearLv3 : spearSprite)
+                     : level == 2 ? (spearLv2 != null ? spearLv2 : spearSprite)
+                     : spearSprite;
+
+            case Player.WeaponType.Hammer:
+                return level == 3 ? (hammerLv3 != null ? hammerLv3 : hammerSprite)
+                     : level == 2 ? (hammerLv2 != null ? hammerLv2 : hammerSprite)
+                     : hammerSprite;
+        }
+
+        return null;
     }
+
 }

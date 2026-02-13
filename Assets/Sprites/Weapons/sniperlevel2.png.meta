@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 1ece22ea1d9431d4b913d833ba024485
+guid: 228fbc84e8a02944c852b369bad8f006
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4301844918096825189
-    second: hammer_0
+      213: 4830186150160530957
+    second: sniperlevel2_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: hammer_0
+      name: sniperlevel2_0
       rect:
         serializedVersion: 2
-        x: 27
-        y: 373
-        width: 954
-        height: 265
+        x: 31
+        y: 358
+        width: 958
+        height: 247
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 56b0bfd292933bb30800000000000000
-      internalID: 4301844918096825189
+      spriteID: d0e745f46b4480340800000000000000
+      internalID: 4830186150160530957
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      hammer_0: 4301844918096825189
+      sniperlevel2_0: 4830186150160530957
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
